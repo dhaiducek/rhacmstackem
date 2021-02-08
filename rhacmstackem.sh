@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 set -e
 
@@ -32,8 +32,6 @@ export AUTH_REDIRECT_PATHS=${AUTH_REDIRECT_PATHS:-()}
 
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
-ls -l
-ls -l ./startrhacm
 ./startrhacm/startrhacm.sh
 
 # Set up RBAC users
