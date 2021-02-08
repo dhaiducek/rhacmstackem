@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: e2e-rbac-test-1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: e2e-rbac-test-2

@@ -1,3 +1,6 @@
+# Deployment output
+deployment/*.yaml
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

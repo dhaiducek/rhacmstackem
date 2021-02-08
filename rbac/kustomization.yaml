@@ -1,0 +1,5 @@
+resources:
+- e2e-rbac-namespace.yaml
+- e2e-rbac-group.yaml
+- e2e-rbac-clusterrolebinding.yaml
+- e2e-rbac-rolebinding.yaml

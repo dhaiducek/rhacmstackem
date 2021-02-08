@@ -1,0 +1,77 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: e2e-cluster-admin-rolebinding
+  namespace: e2e-rbac-test-1
+subjects:
+  - kind: User
+    name: e2e-cluster-admin-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: e2e-admin-rolebinding-rbactest1
+  namespace: e2e-rbac-test-1
+subjects:
+  - kind: User
+    name: e2e-admin-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: e2e-admin-rolebinding-rbactest2
+  namespace: e2e-rbac-test-2
+subjects:
+  - kind: User
+    name: e2e-admin-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: e2e-edit-rolebinding
+  namespace: e2e-rbac-test-1
+subjects:
+  - kind: User
+    name: e2e-edit-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: e2e-view-rolebinding
+  namespace: e2e-rbac-test-1
+subjects:
+  - kind: User
+    name: e2e-view-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: e2e-group-rolebinding
+  namespace: e2e-rbac-test-1
+subjects:
+  - kind: Group
+    name: e2e-ns-group
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
