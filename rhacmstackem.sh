@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 set -e
 
@@ -6,7 +6,7 @@ set -e
 echo "$(date) ##### Cloning Lifeguard, Deploy, Pipeline, and StartRHACM repos"
 git clone https://github.com/dhaiducek/startrhacm.git
 git clone https://github.com/open-cluster-management/lifeguard.git
-git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/open-cluster-management/pipeline.git
+git clone "https://${GIT_USER}:${GIT_TOKEN}@github.com/open-cluster-management/pipeline.git"
 git clone https://github.com/open-cluster-management/deploy.git
 
 export LIFEGUARD_PATH=$(pwd)/lifeguard
