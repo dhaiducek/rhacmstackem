@@ -10,4 +10,4 @@ RUN microdnf update -y && microdnf install -y tar gzip curl git jq httpd-tools
 RUN curl -sLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz -o openshift-client-linux.tar.gz && \
     tar xzf openshift-client-linux.tar.gz && chmod +x oc && mv oc /usr/local/bin/oc && \
     chmod +x kubectl && mv kubectl /usr/local/bin/kubectl && rm openshift-client-linux.tar.gz
-CMD ["/bin/bash"]
+CMD ["/bin/bash", "-c", "./rhacmstackem.sh"]
