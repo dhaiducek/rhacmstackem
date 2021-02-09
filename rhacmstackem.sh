@@ -31,7 +31,15 @@ export CLUSTERPOOL_MAX_CLUSTERS=${CLUSTERPOOL_MAX_CLUSTERS:-"5"}
 export CLUSTERCLAIM_NAME="rhacmstackem-${CLUSTERPOOL_NAME}"
 export CLUSTERCLAIM_GROUP_NAME=${CLUSTERCLAIM_GROUP_NAME:-"ERROR: Please specify CLUSTERCLAIM_GROUP_NAME in environment variables"}
 export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"10h"}
-export AUTH_REDIRECT_PATHS=($(echo "${AUTH_REDIRECT_PATHS}"))
+export AUTH_REDIRECT_PATHS=( $(echo "${AUTH_REDIRECT_PATHS}") )
+
+echo "${AUTH_REDIRECT_PATHS}"
+if [[ -n "${AUTH_REDIRECT_PATHS}"]]; then
+  echo "There's stuff here"
+fi
+for path in ${AUTH_REDIRECT_PATHS[@]}; do
+  echo "begin${path}end"
+done
 
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
