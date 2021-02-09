@@ -32,7 +32,8 @@ export AUTH_REDIRECT_PATHS=${AUTH_REDIRECT_PATHS:-()}
 
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
-source ./startrhacm/startrhacm.sh
+export DISABLE_CLUSTER_CHECK="true"
+./startrhacm/startrhacm.sh
 
 # Set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
