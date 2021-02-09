@@ -31,7 +31,7 @@ export CLUSTERPOOL_MAX_CLUSTERS=${CLUSTERPOOL_MAX_CLUSTERS:-"5"}
 export CLUSTERCLAIM_NAME="rhacmstackem-${CLUSTERPOOL_NAME}"
 export CLUSTERCLAIM_GROUP_NAME=${CLUSTERCLAIM_GROUP_NAME:-"ERROR: Please specify CLUSTERCLAIM_GROUP_NAME in environment variables"}
 export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"10h"}
-export AUTH_REDIRECT_PATHS=${AUTH_REDIRECT_PATHS:-()}
+export AUTH_REDIRECT_PATHS=($(echo ${AUTH_REDIRECT_PATHS}))
 
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
@@ -41,7 +41,7 @@ export DISABLE_CLUSTER_CHECK="true"
 # Set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   echo "$(date) ##### Setting up RBAC users"
-  export RBAC_PASS=$(date | md5sum)
+  export RBAC_PASS=$(date | md5sum | cut -d' ' -f1)
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/*/kubeconfig
   touch ./rbac/htpasswd
   for access in cluster ns; do
