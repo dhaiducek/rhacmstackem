@@ -34,7 +34,7 @@ export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"10h"}
 export AUTH_REDIRECT_PATHS=( $(echo "${AUTH_REDIRECT_PATHS}") )
 
 echo "${AUTH_REDIRECT_PATHS}"
-if [[ -n "${AUTH_REDIRECT_PATHS}"]]; then
+if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
   echo "There's stuff here"
 fi
 for path in ${AUTH_REDIRECT_PATHS[@]}; do
