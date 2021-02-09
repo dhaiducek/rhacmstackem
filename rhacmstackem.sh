@@ -15,12 +15,13 @@ export RHACM_DEPLOY_PATH=$(pwd)/deploy
 
 # Check for Quay token for Deploy
 echo "$(date) ##### Checking for Quay token"
-if [[ -z "${QUAY_TOKEN}" ]]; then
+if [[ -z "${QUAY_TOKEN_DECODED}" ]]; then
   echo "ERROR: QUAY_TOKEN not provided"
   exit 1
 else
   # Re-encode Quay token for Deploy
-  export QUAY_TOKEN=$(printf "${QUAY_TOKEN}" | base64)
+  export QUAY_TOKEN=$(printf "${QUAY_TOKEN_DECODED}" | base64)
+  echo "QUAY_TOKEN: ${QUAY_TOKEN}"
 fi
 
 # ClusterClaim exports
