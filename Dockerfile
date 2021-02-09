@@ -1,16 +1,14 @@
-FROM alpine:latest
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
+# Add RHACMStackEm script and RBAC resources
 ADD rhacmstackem.sh .
 ADD rbac/ rbac/
 
-# Install APK packages: bash, git, curl, jq, htpasswd
-RUN apk update && apk add bash git curl jq apache2-utils
-# Install kubectl
-RUN curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" -o kubectl && \
-    mv kubectl /usr/bin/kubectl && chmod +x /usr/bin/kubectl
-# Install oc
+# Install microdnf packages: tar/gzip, curl, git, jq, htpasswd
+RUN microdnf update -y && microdnf install -y tar gzip curl git jq httpd-tools
+# Install oc/kubectl
 RUN curl -sLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz -o openshift-client-linux.tar.gz && \
-    tar xzf openshift-client-linux.tar.gz && mv oc /usr/bin/oc && chmod +x /usr/bin/oc && rm openshift-client-linux.tar.gz
-# Use musl instead of glibc for oc and run with bash shell
-RUN echo 'alias oc="/lib/ld-musl-x86_64.so.1 --library-path /lib /usr/bin/oc $@"' >> /root/.bashrc
+    tar xzf openshift-client-linux.tar.gz && mv oc /usr/bin/oc && mv kubectl /usr/bin/kubectl && rm openshift-client-linux.tar.gz
+# Run with bash and as non-root
 CMD [ "bash" ]
+USER 1001
