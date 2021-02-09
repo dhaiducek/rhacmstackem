@@ -20,8 +20,7 @@ if [[ -z "${QUAY_TOKEN}" ]]; then
   exit 1
 else
   # Re-encode Quay token for Deploy
-  export QUAY_TOKEN=$(echo -n "${QUAY_TOKEN}" | base64)
-  echo "QUAY_TOKEN: ${QUAY_TOKEN}"
+  export QUAY_TOKEN=$(echo -n "${QUAY_TOKEN}" | base64 -w 0)
 fi
 
 # ClusterClaim exports
