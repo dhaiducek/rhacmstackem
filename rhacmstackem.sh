@@ -33,18 +33,10 @@ export CLUSTERCLAIM_GROUP_NAME=${CLUSTERCLAIM_GROUP_NAME:-"ERROR: Please specify
 export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"10h"}
 export AUTH_REDIRECT_PATHS=( $(echo "${AUTH_REDIRECT_PATHS}") )
 
-echo "${AUTH_REDIRECT_PATHS}"
-if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
-  echo "There's stuff here"
-fi
-for path in ${AUTH_REDIRECT_PATHS[@]}; do
-  echo "begin${path}end"
-done
-
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"
-./startrhacm/startrhacm.sh
+source ./startrhacm/startrhacm.sh
 
 # Set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
@@ -62,7 +54,7 @@ if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
     oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
   fi
-  if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o 'grc-e2e-htpasswd') ]; then
+  if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o 'e2e-htpasswd') ]; then
     oc patch -n openshift-config oauth cluster --type json --patch "$(cat ./rbac/e2e-rbac-auth.json)"
   fi
   oc apply --validate=false -k ./rbac
