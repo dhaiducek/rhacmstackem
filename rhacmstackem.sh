@@ -37,6 +37,8 @@ export AUTH_REDIRECT_PATHS=( $(echo "${AUTH_REDIRECT_PATHS}") )
 echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"
 source ./startrhacm/startrhacm.sh
+# Return to root directory
+cd /
 
 # Set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
