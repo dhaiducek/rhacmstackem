@@ -9,6 +9,7 @@ RUN microdnf update -y && microdnf install -y tar gzip curl git jq httpd-tools
 # Install oc/kubectl
 RUN curl -sLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz -o openshift-client-linux.tar.gz && \
     tar xzf openshift-client-linux.tar.gz && mv oc /usr/bin/oc && mv kubectl /usr/bin/kubectl && rm openshift-client-linux.tar.gz
-# Run with bash and as non-root
+# Run with bash, as non-root, and create folders
+RUN mkdir startrhacm && mkdir pipeline && mkdir deploy
 CMD [ "bash" ]
 USER 1001
