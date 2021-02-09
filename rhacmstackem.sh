@@ -18,6 +18,9 @@ echo "$(date) ##### Checking for Quay token"
 if [[ -z "${QUAY_TOKEN}" ]]; then
   echo "ERROR: QUAY_TOKEN not provided"
   exit 1
+else
+  # Re-encode Quay token for Deploy
+  export QUAY_TOKEN=$(printf "${QUAY_TOKEN}" | base64)
 fi
 
 # ClusterClaim exports
