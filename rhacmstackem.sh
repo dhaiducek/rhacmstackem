@@ -69,6 +69,6 @@ if [[ -n "${SLACK_URL}" ]]; then
   SNAPSHOT=$(oc get pod -l app=acm-custom-registry -o jsonpath='{.items[].spec.containers[0].image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
   RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}')
   jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
-  | awk 'BEGIN{printf "{\"text\":\"*Snapshot*: '${SNAPSHOT}'\\n*RBAC Password*: '${RBAC_PASS}'\\n"};{printf "%s\\n", $0};END{printf "*RHACM URL*:'${RHACM_URL}'\\n\"}"}' \
+  | awk 'BEGIN{printf "{\"text\":\"*Snapshot*: '${SNAPSHOT}'\\n*RBAC Password*: '${RBAC_PASS}'\\n"};{printf "%s\\n", $0};END{printf "*RHACM URL*: '${RHACM_URL}'\\n\"}"}' \
   | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
 fi
