@@ -9,9 +9,9 @@ git clone https://github.com/open-cluster-management/lifeguard.git
 git clone "https://${GIT_USER}:${GIT_TOKEN}@github.com/open-cluster-management/pipeline.git"
 git clone https://github.com/open-cluster-management/deploy.git
 
-export LIFEGUARD_PATH=$(pwd)/lifeguard
-export RHACM_PIPELINE_PATH=$(pwd)/pipeline
-export RHACM_DEPLOY_PATH=$(pwd)/deploy
+export LIFEGUARD_PATH=/lifeguard
+export RHACM_PIPELINE_PATH=/pipeline
+export RHACM_DEPLOY_PATH=/deploy
 
 # Check for Quay token for Deploy
 echo "$(date) ##### Checking for Quay token"
@@ -42,7 +42,7 @@ export DISABLE_CLUSTER_CHECK="true"
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   echo "$(date) ##### Setting up RBAC users"
   export RBAC_PASS=$(date | md5sum | cut -d' ' -f1)
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/*/kubeconfig
+  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   touch ./rbac/htpasswd
   for access in cluster ns; do
     for role in cluster-admin admin edit view group; do
@@ -63,7 +63,7 @@ fi
 # Send cluster information to Slack
 if [[ -n "${SLACK_URL}" ]]; then
   echo "$(date) ##### Sending credentials to Slack"
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/*/kubeconfig
+  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   SNAPSHOT=$(oc get pod -l app=acm-custom-registry -o jsonpath='{.items[].spec.containers[0].image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
   RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}')
   jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
