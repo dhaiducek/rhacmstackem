@@ -31,7 +31,7 @@ export CLUSTERPOOL_MAX_CLUSTERS=${CLUSTERPOOL_MAX_CLUSTERS:-"5"}
 export CLUSTERCLAIM_NAME="rhacmstackem-${CLUSTERPOOL_NAME}"
 export CLUSTERCLAIM_GROUP_NAME=${CLUSTERCLAIM_GROUP_NAME:-"ERROR: Please specify CLUSTERCLAIM_GROUP_NAME in environment variables"}
 export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"10h"}
-export AUTH_REDIRECT_PATHS=($(echo ${AUTH_REDIRECT_PATHS}))
+export AUTH_REDIRECT_PATHS=($(echo "${AUTH_REDIRECT_PATHS}"))
 
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
@@ -67,6 +67,6 @@ if [[ -n "${SLACK_URL}" ]]; then
   SNAPSHOT=$(oc get pod -l app=acm-custom-registry -o jsonpath='{.items[].spec.containers[0].image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
   RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}')
   jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
-  | awk 'BEGIN{printf "{\"text\":\"*Snapshot*:'${SNAPSHOT}'\\n*RBAC Password*:'${RBAC_PASS}'\\n"};{printf "%s\\n", $0};END{printf "*RHACM URL*:'${RHACM_URL}'\\n\"}"}' \
+  | awk 'BEGIN{printf "{\"text\":\"*Snapshot*: '${SNAPSHOT}'\\n*RBAC Password*: '${RBAC_PASS}'\\n"};{printf "%s\\n", $0};END{printf "*RHACM URL*:'${RHACM_URL}'\\n\"}"}' \
   | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
 fi
