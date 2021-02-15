@@ -69,16 +69,17 @@ if [[ -n "${SLACK_URL}" ]]; then
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   SNAPSHOT=$(oc get pod -l app=acm-custom-registry -o jsonpath='{.items[].spec.containers[0].image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
   RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}')
-  # Get expiration time from the ClusterClaim
-  unset KUBECONFIG
-  CLAIM_CREATION=$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
-  LIFETIME_DIFF="+$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
-  CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
-  # Post cluster information to Slack
+  GREETING=":mostly_sunny: $(date "+Good Morning! Here's the cluster for %A, %B %d, %Y")"
   jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
-  | awk 'BEGIN{printf "{\"text\":\":mostly_sunny: '$(date "+Good Morning! Here's the cluster for %A, %B %d, %Y")'\\n*Lifetime*: '${CLUSTERCLAIM_LIFETIME}'\\n*Snapshot*: '${SNAPSHOT}'\\n'${RBAC_PASS}'"};{printf "%s\\n", $0};END{printf "*RHACM URL*: '${RHACM_URL}'\\n\"}"}' \
+  | awk 'BEGIN{printf "{\"text\":\"'${GREETING}'\\n*Lifetime*: '${CLUSTERCLAIM_LIFETIME}'\\n*Snapshot*: '${SNAPSHOT}'\\n'${RBAC_PASS}'"};{printf "%s\\n", $0};END{printf "*RHACM URL*: '${RHACM_URL}'\\n\"}"}' \
   | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
-  # Schedule a Slack message 20 minutes before the cluster expiration time
-  echo "{\"text\": \"*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the `${CLUSTERCLAIM_NAME}` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:\", \"post_at\": ${CLAIM_EXPIRATION}}" \
-  | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
+  # Get expiration time from the ClusterClaim
+  # unset KUBECONFIG
+  # CLAIM_CREATION=$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
+  # LIFETIME_DIFF="+$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+  # CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
+  # Post cluster information to Slack
+  # Schedule a Slack message 20 minutes before the cluster expiration time - TODO: Requires a scheduled message (https://api.slack.com/messaging/scheduling)
+  # echo "{\"text\": \"/remind @channel '*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the `${CLUSTERCLAIM_NAME}` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:' at \", \"post_at\": ${CLAIM_EXPIRATION}}" \
+  # | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
 fi
