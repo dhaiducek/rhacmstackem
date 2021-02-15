@@ -30,17 +30,16 @@ export CLUSTERPOOL_RESIZE=${CLUSTERPOOL_RESIZE:-"true"}
 export CLUSTERPOOL_MAX_CLUSTERS=${CLUSTERPOOL_MAX_CLUSTERS:-"5"}
 export CLUSTERCLAIM_NAME="rhacmstackem-${CLUSTERPOOL_NAME}"
 export CLUSTERCLAIM_GROUP_NAME=${CLUSTERCLAIM_GROUP_NAME:-"ERROR: Please specify CLUSTERCLAIM_GROUP_NAME in environment variables"}
-export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"10h"}
-export AUTH_REDIRECT_PATHS=( $(echo "${AUTH_REDIRECT_PATHS}") )
+export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"12h"}
+export AUTH_REDIRECT_PATHS="${AUTH_REDIRECT_PATHS:-""}"
+export INSTALL_ICSP=${INSTALL_ICSP:-"false"}
 
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"
-source ./startrhacm/startrhacm.sh
-# Return to root directory
-cd /
+./startrhacm/startrhacm.sh
 
-# Set up RBAC users
+# Point to claimed cluster and set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   echo "$(date) ##### Setting up RBAC users"
   export RBAC_PASS=$(date | md5sum | cut -d' ' -f1)
@@ -60,15 +59,26 @@ if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
     oc patch -n openshift-config oauth cluster --type json --patch "$(cat ./rbac/e2e-rbac-auth.json)"
   fi
   oc apply --validate=false -k ./rbac
+  export RBAC_PASS="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\n*RBAC Password*: ${RBAC_PASS}\\n"
 fi
 
 # Send cluster information to Slack
 if [[ -n "${SLACK_URL}" ]]; then
   echo "$(date) ##### Sending credentials to Slack"
+  # Point to claimed cluster and retrieve cluster information
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   SNAPSHOT=$(oc get pod -l app=acm-custom-registry -o jsonpath='{.items[].spec.containers[0].image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
   RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}')
+  # Get expiration time from the ClusterClaim
+  unset KUBECONFIG
+  CLAIM_CREATION=$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
+  LIFETIME_DIFF="+$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+  CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
+  # Post cluster information to Slack
   jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
-  | awk 'BEGIN{printf "{\"text\":\"*Snapshot*: '${SNAPSHOT}'\\n*RBAC Password*: '${RBAC_PASS}'\\n"};{printf "%s\\n", $0};END{printf "*RHACM URL*: '${RHACM_URL}'\\n\"}"}' \
+  | awk 'BEGIN{printf "{\"text\":\":mostly_sunny: '$(date "+Good Morning! Here's the cluster for %A, %B %d, %Y")'\\n*Lifetime*: '${CLUSTERCLAIM_LIFETIME}'\\n*Snapshot*: '${SNAPSHOT}'\\n'${RBAC_PASS}'"};{printf "%s\\n", $0};END{printf "*RHACM URL*: '${RHACM_URL}'\\n\"}"}' \
+  | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
+  # Schedule a Slack message 20 minutes before the cluster expiration time
+  echo "{\"text\": \"*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the `${CLUSTERCLAIM_NAME}` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:\", \"post_at\": ${CLAIM_EXPIRATION}}" \
   | curl -X POST -H 'Content-type: application/json' --data @- ${SLACK_URL}
 fi

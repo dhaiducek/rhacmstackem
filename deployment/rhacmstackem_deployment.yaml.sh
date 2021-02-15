@@ -2,7 +2,7 @@
 
 set -e
 
-# Creates a RHACMStackEm CronJob to deploy a 10 hour cluster at 6:15 AM EST (11 AM UTC) Monday - Friday
+# Creates a RHACMStackEm CronJob to deploy a 12 hour cluster at 6:15 AM EST (11 AM UTC) Monday - Friday
 
 echo "Using exports (if there's no output, please set these variables and try again):"
 echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME}"
@@ -81,15 +81,17 @@ spec:
             - name: CLUSTERPOOL_NAME
               value: "${CLUSTERPOOL_NAME}"
             - name: CLUSTERPOOL_RESIZE
-              value: "${CLUSTERPOOL_RESIZE:-"true"}"
+              value: "${CLUSTERPOOL_RESIZE:-true}"
             - name: CLUSTERPOOL_MAX_CLUSTERS
-              value: "${CLUSTERPOOL_MAX_CLUSTERS:-"5"}"
+              value: "${CLUSTERPOOL_MAX_CLUSTERS:-5}"
             - name: CLUSTERCLAIM_GROUP_NAME
               value: "${CLUSTERCLAIM_GROUP_NAME}"
             - name: CLUSTERCLAIM_LIFETIME
-              value: "${CLUSTERCLAIM_LIFETIME:-"10h"}"
+              value: "${CLUSTERCLAIM_LIFETIME:-12h}"
             - name: AUTH_REDIRECT_PATHS
               value: "${AUTH_REDIRECT_PATHS}"
+            - name: INSTALL_ICSP
+              value: "${INSTALL_ICSP:-false}"
 EOF
 
 echo ""
