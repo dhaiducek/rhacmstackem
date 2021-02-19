@@ -91,4 +91,5 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   elif [[ -n "${SLACK_URL}" ]]; then
     # Post credentials to Slack using the Incoming Webhook (no expiration post)
     curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" ${SLACK_URL}
+  fi
 fi
