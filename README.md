@@ -13,7 +13,11 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
     - Click "Generate Encrypted Password"
     - With "Kubernetes Secret" selected on the left, follow Step 1 and Step 2 to create the secret on the cluster (you can modify `metadata.name` as you wish)
   - Use GitHub to set up a [Personal Access Token](https://github.com/settings/tokens) with access to the private [Pipeline](https://github.com/open-cluster-management/pipeline/) repo
-  - (Optional) Create a new private Slack channel in your workspace. In the channel, click the `i` to view the channel's details. Click the "More" button and select "Add apps". Add "ClusterPool Bot". The "Incoming Webhook" URL is the `SLACK_URL` you'll need to post to your channel.
+  - (Optional) Create a new private Slack channel in your workspace. In the channel, click the `i` in the upper right to view the channel's details. Click the "More" button and select "Add apps". Add "ClusterPool Bot". The bot can use either of two methods:
+    - Incoming Webhook
+      - This URL is the `SLACK_URL` to post to your channel and does not require a token or channel ID, but will not post a scheduled message when the claim will expire
+    - Slack API
+      - Using the Oauth token (`SLACK_TOKEN`) and Channel ID (`SLACK_CHANNEL_ID`) to post to your desired channel, this will use the Slack API to post both the credentials and schedule a message to post 20 minutes before the claim is going to expire (Note: You can find the Channel ID by right clicking on the channel, select "copy link", and use the last portion of the Channel link for the ID)
 2. Export environment variables:
   ```bash
   # REQUIRED EXPORTS
@@ -26,7 +30,9 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export GIT_TOKEN="" # Git token with permissions for Pipeline
 
   # OPTIONAL EXPORTS
-  export SLACK_URL="" # Slack URL to post cluster information to a channel
+  export SLACK_URL="" # Slack URL to post cluster information to a channel using the Incoming Webhook (no token or channel ID needed)
+  export SLACK_TOKEN="" # Slack token to post cluster information and a scheduled expiration message to a channel using the Slack API (requires channel ID)
+  export SLACK_CHANNEL_ID="" # Slack Channel ID to post cluster information and a scheduled expiration message to a channel using the Slack API (requires token)
   export CLUSTERPOOL_RESIZE="" # Whether to allow increasing the ClusterPool size if no claims are available (default: "true")
   export CLUSTERPOOL_MAX_CLUSTERS="" # Maximum size of ClusterPool if resize is enabled (default: "5")
   export CLUSTERCLAIM_LIFETIME="" # Lifetime of claimed cluster (default: "12h")
@@ -43,7 +49,7 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
 
 ## About RBAC users
 
-By default, RBAC users are instantiated on the cluster with a random password posted to Slack. Namespaces `e2e-rbac-test-1` and `e2e-rbac-test-2` are also created for the namespaced users to access.
+By default, RBAC users are instantiated on the cluster with a random password posted to Slack (This can be disabled by adding `RBAC_SETUP="false"` to the deployment). With this, the namespaces `e2e-rbac-test-1` and `e2e-rbac-test-2` are also created for the namespaced users to access.
 
 | USER | ACCESS | ROLE |
 | --- | --- | --- |

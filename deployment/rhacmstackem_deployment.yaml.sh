@@ -13,6 +13,8 @@ echo "* QUAY_SECRET_NAME: ${QUAY_SECRET_NAME}"
 echo "* GIT_USER: $(if [[ -n "${GIT_USER}" ]]; then echo "REDACTED"; fi)"
 echo "* GIT_TOKEN: $(if [[ -n "${GIT_TOKEN}" ]]; then echo "REDACTED"; fi)"
 echo "* SLACK_URL (optional): $(if [[ -n "${SLACK_URL}" ]]; then echo "REDACTED"; fi)"
+echo "* SLACK_TOKEN (optional): $(if [[ -n "${SLACK_TOKEN}" ]]; then echo "REDACTED"; fi)"
+echo "* SLACK_CHANNEL_ID (optional): $(if [[ -n "${SLACK_CHANNEL_ID}" ]]; then echo "REDACTED"; fi)"
 
 cat >rhacmstackem-github-secret.yaml <<EOF
 apiVersion: v1
@@ -24,14 +26,20 @@ data:
   token: $(printf "${GIT_TOKEN}" | base64)
 EOF
 
+if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]] ); then
 cat >rhacmstackem-slack-secret.yaml <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
   name: rhacmstackem-slack-secret
 data:
-  url: $(printf "${SLACK_URL}" | base64)
+$(test -n "${SLACK_URL}" && printf "  url: $(printf "${SLACK_URL}" | base64)\n")
+$(test -n "${SLACK_TOKEN}" && printf "  token: $(printf "${SLACK_TOKEN}" | base64)\n")
+$(test -n "${SLACK_CHANNEL_ID}" && printf "  channel_id: $(printf "${SLACK_CHANNEL_ID}" | base64)\n")
 EOF
+else
+  printf "\n* Slack credentials not provided--skipping creation of Slack secret YAML\n"
+fi
 
 cat >rhacmstackem-cronjob.yaml <<EOF
 apiVersion: batch/v1beta1
@@ -76,6 +84,19 @@ spec:
                 secretKeyRef:
                   name: rhacmstackem-slack-secret
                   key: url
+                  optional: true
+            - name: SLACK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: rhacmstackem-slack-secret
+                  key: token
+                  optional: true
+            - name: SLACK_CHANNEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: rhacmstackem-slack-secret
+                  key: channel_id
+                  optional: true
             - name: CLUSTERPOOL_TARGET_NAMESPACE
               value: "${CLUSTERPOOL_TARGET_NAMESPACE}"
             - name: CLUSTERPOOL_NAME
