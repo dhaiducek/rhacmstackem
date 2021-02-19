@@ -90,6 +90,6 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${EXPIRATION_DATA}" https://slack.com/api/chat.scheduleMessage
   elif [[ -n "${SLACK_URL}" ]]; then
     # Post credentials to Slack using the Incoming Webhook (no expiration post)
-    curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" ${SLACK_URL}
+    curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" ${SLACK_URL} | jq '{OK: .ok, ERRORS: .error, POST_AT: .post_at}'
   fi
 fi
