@@ -64,7 +64,7 @@ fi
 
 # Send cluster information to Slack
 if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]] ); then
-  echo "$(date) ##### Sending credentials to Slack"
+  echo "$(date) ##### Posting information to Slack"
   # Point to claimed cluster and retrieve cluster information
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
@@ -82,13 +82,16 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   # Prefer using token and Slack API for both credentials and scheduled expiration post (Fall back to Incoming Webhook to post credentials to Slack (no expiration post))
   if [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; then
     # Post credentials to Slack using the Slack API
+    echo "* Sending credentials to Slack via token"
     curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${CREDENTIAL_DATA}" ${SLACK_URL}
     # Schedule a Slack message 20 minutes before the cluster expiration time
     EXPIRATION_DATA="{\"channel\": \"${SLACK_CHANNEL_ID}\",\"text\": \"*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the \`${CLUSTERCLAIM_NAME}\` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:\", \"post_at\": ${CLAIM_EXPIRATION}}"
-    # Schedule a Slack message 20 minutes before the cluster expiration time - TODO: Requires a token and scheduled message with the new API (https://api.slack.com/messaging/scheduling)
+    # Schedule a Slack message 20 minutes before the cluster expiration time
+    echo "* Scheduling expiration post to Slack via token"
     curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${EXPIRATION_DATA}" https://slack.com/api/chat.scheduleMessage | jq '{OK: .ok, ERRORS: .error, POST_AT: .post_at}'
   elif [[ -n "${SLACK_URL}" ]]; then
     # Post credentials to Slack using the Incoming Webhook (no expiration post)
+    echo "* Sending credentials to Slack via incoming webhook"
     curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" ${SLACK_URL}
   fi
 fi
