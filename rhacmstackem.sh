@@ -34,6 +34,26 @@ export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"12h"}
 export AUTH_REDIRECT_PATHS="${AUTH_REDIRECT_PATHS:-""}"
 export INSTALL_ICSP=${INSTALL_ICSP:-"false"}
 
+# Check for existing claims of the same name
+echo "$(date) ##### Checking for existing claims named ${CLUSTERCLAIM_NAME}"
+if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim ${CLUSTERCLAIM_NAME} &>/dev/null); then
+  echo "* Existing claim found"
+  case "${CLAIM_REUSE:-"delete"}" in
+    delete)
+      oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim ${CLUSTERCLAIM_NAME}
+      ;;
+    update)
+      echo "* Reusing existing claim"
+      ;;
+    *)
+      echo "^^^^^ Unrecognized value found in CLAIM_REUSE: '${CLAIM_REUSE}'"
+      exit 1
+      ;;
+  esac
+else
+  echo "* No existing claim found"
+fi
+
 # Run StartRHACM to claim cluster and deploy RHACM
 echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"

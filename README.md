@@ -39,6 +39,7 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export AUTH_REDIRECT_PATHS="" # Oauth redirect paths in a space-separated string (default: "") Example: "/ /path1/ /path2/"
   export RBAC_SETUP="" # Whether to set up RBAC users on the cluster (default: "true")
   export INSTALL_ICSP="" # Whether to install ImageContentSourcePolicy to access downstream repos (default: "false")
+  export CLAIM_REUSE="" # Controls initial cleanup behavior (default: "delete"): "delete" - Delete existing claims prior to a deploy; "update" - Reuse existing claim; Any other non-empty value will exit the script and not attempt to deploy
   ```
 3. Change to the `deployment/` directory and run the `rhacmstackem_deployment.yaml.sh` script to create the necessary YAML files:
   ```bash
