@@ -62,7 +62,7 @@ export DISABLE_CLUSTER_CHECK="true"
 # Point to claimed cluster and set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   echo "$(date) ##### Setting up RBAC users"
-  export RBAC_PASS=$(date | md5sum | cut -d' ' -f1)
+  export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   touch ./rbac/htpasswd
   for access in cluster ns; do
