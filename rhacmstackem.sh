@@ -36,11 +36,11 @@ export INSTALL_ICSP=${INSTALL_ICSP:-"false"}
 
 # Check for existing claims of the same name
 echo "$(date) ##### Checking for existing claims named ${CLUSTERCLAIM_NAME}"
-if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim ${CLUSTERCLAIM_NAME} &>/dev/null); then
+if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME} &>/dev/null); then
   echo "* Existing claim found"
   case "${CLAIM_REUSE:-"delete"}" in
     delete)
-      oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim ${CLUSTERCLAIM_NAME}
+      oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
       ;;
     update)
       echo "* Reusing existing claim"
@@ -92,8 +92,8 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}')
   # Get expiration time from the ClusterClaim
   unset KUBECONFIG
-  CLAIM_CREATION=$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
-  LIFETIME_DIFF="+$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+  CLAIM_CREATION=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
+  LIFETIME_DIFF="+$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
   CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
   LIFETIME="${CLUSTERCLAIM_LIFETIME} from $(date -d "${CLAIM_CREATION}" "+%I:%M %p %Z")"
   CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
