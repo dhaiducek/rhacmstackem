@@ -61,6 +61,7 @@ export DISABLE_CLUSTER_CHECK="true"
 
 # Point to claimed cluster and set up RBAC users
 if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
+  RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
   echo "$(date) ##### Setting up RBAC users"
   export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
@@ -75,8 +76,8 @@ if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
     oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
   fi
-  if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o 'e2e-htpasswd') ]; then
-    oc patch -n openshift-config oauth cluster --type json --patch "$(cat ./rbac/e2e-rbac-auth.json)"
+  if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o "${RBAC_IDP_NAME}") ]; then
+    oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders/-","value":{"name":"'${RBAC_IDP_NAME}'","mappingMethod":"claim","type":"HTPasswd","htpasswd":{"fileData":{"name":"e2e-users"}}}}]'
   fi
   oc apply --validate=false -k ./rbac
   export RBAC_INFO="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\\n*RBAC Password*: ${RBAC_PASS}\\\n"
