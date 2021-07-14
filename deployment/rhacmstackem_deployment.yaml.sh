@@ -111,6 +111,8 @@ spec:
               value: "${AUTH_REDIRECT_PATHS}"
             - name: INSTALL_ICSP
               value: "${INSTALL_ICSP:-false}"
+            - name: CLAIM_REUSE
+              value: "${CLAIM_REUSE}" 
 EOF
 
 echo ""
