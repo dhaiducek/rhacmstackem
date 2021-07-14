@@ -34,6 +34,7 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export SLACK_TOKEN="" # Slack token to post cluster information and a scheduled expiration message to a channel using the Slack API (requires channel ID)
   export SLACK_CHANNEL_ID="" # Slack Channel ID to post cluster information and a scheduled expiration message to a channel using the Slack API (requires token)
   export CLUSTERPOOL_MIN_SIZE="" # Minimum size of ClusterPool to scale to before creating claim (default: "1")
+  export CLUSTERCLAIM_NAME="" # Name to use for ClusterClaim (default: "rhacmstackem-${CLUSTERPOOL_NAME}")
   export CLUSTERCLAIM_LIFETIME="" # Lifetime of claimed cluster (default: "12h")
   export AUTH_REDIRECT_PATHS="" # Oauth redirect paths in a space-separated string (default: "") Example: "/ /path1/ /path2/"
   export RBAC_SETUP="" # Whether to set up RBAC users on the cluster (default: "true")

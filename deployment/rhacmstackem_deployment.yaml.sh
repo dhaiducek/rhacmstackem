@@ -105,6 +105,8 @@ spec:
               value: "${CLUSTERPOOL_MIN_SIZE:-1}"
             - name: CLUSTERCLAIM_GROUP_NAME
               value: "${CLUSTERCLAIM_GROUP_NAME}"
+            - name: CLUSTERCLAIM_NAME
+              value: "${CLUSTERCLAIM_NAME}"
             - name: CLUSTERCLAIM_LIFETIME
               value: "${CLUSTERCLAIM_LIFETIME:-12h}"
             - name: AUTH_REDIRECT_PATHS
