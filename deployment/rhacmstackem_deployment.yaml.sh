@@ -101,18 +101,20 @@ spec:
               value: "${CLUSTERPOOL_TARGET_NAMESPACE}"
             - name: CLUSTERPOOL_NAME
               value: "${CLUSTERPOOL_NAME}"
-            - name: CLUSTERPOOL_RESIZE
-              value: "${CLUSTERPOOL_RESIZE:-true}"
-            - name: CLUSTERPOOL_MAX_CLUSTERS
-              value: "${CLUSTERPOOL_MAX_CLUSTERS:-5}"
+            - name: CLUSTERPOOL_MIN_SIZE
+              value: "${CLUSTERPOOL_MIN_SIZE:-1}"
             - name: CLUSTERCLAIM_GROUP_NAME
               value: "${CLUSTERCLAIM_GROUP_NAME}"
+            - name: CLUSTERCLAIM_NAME
+              value: "${CLUSTERCLAIM_NAME}"
             - name: CLUSTERCLAIM_LIFETIME
               value: "${CLUSTERCLAIM_LIFETIME:-12h}"
             - name: AUTH_REDIRECT_PATHS
               value: "${AUTH_REDIRECT_PATHS}"
             - name: INSTALL_ICSP
               value: "${INSTALL_ICSP:-false}"
+            - name: CLAIM_REUSE
+              value: "${CLAIM_REUSE}" 
 EOF
 
 echo ""
