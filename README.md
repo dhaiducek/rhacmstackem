@@ -34,6 +34,7 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export SLACK_TOKEN="" # Slack token to post cluster information and a scheduled expiration message to a channel using the Slack API (requires channel ID)
   export SLACK_CHANNEL_ID="" # Slack Channel ID to post cluster information and a scheduled expiration message to a channel using the Slack API (requires token)
   export CLUSTERPOOL_MIN_SIZE="" # Minimum size of ClusterPool to scale to before creating claim (default: "1")
+  export CLUSTERPOOL_POST_DEPLOY_SIZE="" # Set the size of the ClusterPool post-deployment
   export CLUSTERCLAIM_NAME="" # Name to use for ClusterClaim (default: "rhacmstackem-${CLUSTERPOOL_NAME}")
   export CLUSTERCLAIM_LIFETIME="" # Lifetime of claimed cluster (default: "12h")
   export AUTH_REDIRECT_PATHS="" # Oauth redirect paths in a space-separated string (default: "") Example: "/ /path1/ /path2/"
@@ -42,6 +43,7 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export INSTALL_ICSP="" # Whether to install ImageContentSourcePolicy to access downstream repos (default: "false")
   export CLAIM_REUSE="" # Controls initial cleanup behavior (default: "delete"): "delete" - Delete existing claims prior to a deploy; "update" - Reuse existing claim; Any other non-empty value will exit the script and not attempt to deploy
   ```
+  **NOTE**: Additional exports to further configure the deployment can be found in the [`StartRHACM` configuration](https://github.com/dhaiducek/startrhacm/blob/main/utils/config.sh.template)
 3. Change to the `deployment/` directory and run the `rhacmstackem_deployment.yaml.sh` script to create the necessary YAML files:
   ```bash
   cd deployment/
