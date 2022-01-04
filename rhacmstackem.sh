@@ -39,7 +39,10 @@ if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_N
   echo "* Existing claim found"
   case "${CLAIM_REUSE:-"delete"}" in
     delete)
+      CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}  -o jsonpath='{.spec.namespace}')
       oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
+      # Delete underlying clusterdeployment manually to prevent claiming a deployment that's in a deleting phase
+      oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
       ;;
     update)
       echo "* Reusing existing claim"
