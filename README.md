@@ -7,12 +7,12 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
 ## CronJob Deployment
 
 1. Pre-deployment setup
-  - Set up a ServiceAccount in your ClusterPool namespace (see the [Lifeguard Service Account docs](https://github.com/open-cluster-management/lifeguard/blob/main/docs/creating_and_using_service_accounts_for_CI.md#creating-a-service-account-and-configuring-roles))
-  - Use Quay to create a secret on the ClusterPool cluster with access to https://quay.io/organization/open-cluster-management
+  - Set up a ServiceAccount in your ClusterPool namespace (see the [Lifeguard Service Account docs](https://github.com/stolostron/lifeguard/blob/main/docs/creating_and_using_service_accounts_for_CI.md#creating-a-service-account-and-configuring-roles))
+  - Use Quay to create a secret on the ClusterPool cluster with access to https://quay.io/organization/stolostron
     - Navigate to your Account Settings: `https://quay.io/user/<username>?tab=settings`
     - Click "Generate Encrypted Password"
     - With "Kubernetes Secret" selected on the left, follow Step 1 and Step 2 to create the secret on the cluster (you can modify `metadata.name` as you wish)
-  - Use GitHub to set up a [Personal Access Token](https://github.com/settings/tokens) with access to the private [Pipeline](https://github.com/open-cluster-management/pipeline/) repo
+  - Use GitHub to set up a [Personal Access Token](https://github.com/settings/tokens) with access to the private [Pipeline](https://github.com/stolostron/pipeline/) repo
   - (Optional) Create a new private Slack channel in your workspace. In the channel, click the `i` in the upper right to view the channel's details. Click the "More" button and select "Add apps". Add "ClusterPool Bot". The bot can use either of two methods:
     - Incoming Webhook
       - This URL is the `SLACK_URL` to post to your channel and does not require a token or channel ID, but will not post a scheduled message when the claim will expire
