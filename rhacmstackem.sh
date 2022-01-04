@@ -41,8 +41,9 @@ if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_N
     delete)
       CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}  -o jsonpath='{.spec.namespace}')
       oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
-      # Delete underlying clusterdeployment manually to prevent claiming a deployment that's in a deleting phase
-      oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
+      echo "* Waiting for Hive to process ClusterDeployment for deletion:"
+      oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
+      sleep 30
       ;;
     update)
       echo "* Reusing existing claim"
