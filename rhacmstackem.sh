@@ -41,9 +41,19 @@ if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_N
     delete)
       CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}  -o jsonpath='{.spec.namespace}')
       oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
-      echo "* Waiting for Hive to process ClusterDeployment for deletion:"
-      oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
-      sleep 30
+      echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
+      READY="false"
+      ATTEMPTS=0
+      MAX_ATTEMPTS=10
+      INTERVAL=30
+      while (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}) && (( ATTEMPTS != MAX_ATTEMPTS )); do
+        echo "* Waiting another ${INTERVAL}s for cluster deployment cleanup (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+        sleep ${INTERVAL}
+      done
+      if (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT} &>/dev/null); then
+        echo "* Manually deleting ClusterDeployment ${CLUSTERDEPLOYMENT}"
+        oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
+      fi
       ;;
     update)
       echo "* Reusing existing claim"
