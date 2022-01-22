@@ -59,7 +59,7 @@ spec:
       template:
         spec:
           serviceAccountName: ${SERVICE_ACCOUNT_NAME}
-          restartPolicy: OnFailure
+          restartPolicy: Never
           containers:
           - name: rhacmstackem
             image: quay.io/dhaiduce/rhacmstackem
