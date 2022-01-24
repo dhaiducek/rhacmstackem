@@ -104,7 +104,7 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   # Point to claimed cluster and retrieve cluster information
   export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
   # Set greeting based on error code from StartRHACM
-  if [[ -z "ERROR_CODE" ]]
+  if [[ -z "ERROR_CODE" ]]; then
     GREETING=":red_circle: RHACM deployment failed. The \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y") may need to be debugged before use."
   else
     GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
