@@ -56,6 +56,7 @@ spec:
   schedule: "15 11 * * 1-5"
   jobTemplate:
     spec:
+      backoffLimit: 1
       template:
         spec:
           serviceAccountName: ${SERVICE_ACCOUNT_NAME}
