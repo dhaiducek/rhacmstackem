@@ -42,6 +42,9 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export RBAC_IDP_NAME="" # Custom name for identity provider (default: "e2e-htpasswd")
   export INSTALL_ICSP="" # Whether to install ImageContentSourcePolicy to access downstream repos (default: "false")
   export CLAIM_REUSE="" # Controls initial cleanup behavior (default: "delete"): "delete" - Delete existing claims prior to a deploy; "update" - Reuse existing claim; Any other non-empty value will exit the script and not attempt to deploy
+  export CONSOLE_BANNER_TEXT="" # Text to put in a banner at the top of the OpenShift console (Use "default" to advertise for RHACMStackEm, leave empty to skip the banner)
+  export CONSOLE_BANNER_COLOR="#fff" # Color of the text in the banner
+  export CONSOLE_BANNER_BGCOLOR="#316DC1" # Color of the banner
   ```
   **NOTE**: Additional exports to further configure the deployment can be found in the [`StartRHACM` configuration](https://github.com/dhaiducek/startrhacm/blob/main/utils/config.sh.template)
 3. Change to the `deployment/` directory and run the `rhacmstackem_deployment.yaml.sh` script to create the necessary YAML files:

@@ -1,0 +1,12 @@
+apiVersion: console.openshift.io/v1
+kind: ConsoleNotification
+metadata:
+  name: rhacmstackem
+spec:
+  backgroundColor: '#316DC1'
+  color: '#fff'
+  location: BannerTop
+  text: This cluster was created by
+  link:
+    href: https://github.com/dhaiducek/rhacmstackem
+    text: RHACMStackEm!

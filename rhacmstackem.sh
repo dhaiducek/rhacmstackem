@@ -98,6 +98,20 @@ if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
   export RBAC_INFO="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\\n*RBAC Password*: ${RBAC_PASS}\\\n"
 fi
 
+if [[ -n "${CONSOLE_BANNER_TEXT}" ]]; then
+  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
+  oc apply -f consolenotification.yaml
+  if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
+    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"},{"op":"replace", "path":"/spec/text", "value":"'${CONSOLE_BANNER_TEXT}'"}]'
+  fi
+  if [[ -n "${CONSOLE_BANNER_COLOR}" ]]; then
+    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/color", "value":"'${CONSOLE_BANNER_COLOR}'"}]'
+  fi
+  if [[ -n "${CONSOLE_BANNER_BGCOLOR}" ]]; then
+    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/backgroundColor", "value":"'${CONSOLE_BANNER_BGCOLOR}'"}]'
+  fi
+fi
+
 # Send cluster information to Slack
 if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]] ); then
   echo "$(date) ##### Posting information to Slack"
