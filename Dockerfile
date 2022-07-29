@@ -1,8 +1,8 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
-# Add RHACMStackEm script and RBAC resources
+# Add RHACMStackEm script and YAML resources
 ADD rhacmstackem.sh .
-ADD rbac/ rbac/
+ADD resources/ resources/
 
 # Install microdnf packages: tar/gzip, curl, git, jq, htpasswd
 RUN microdnf update -y && microdnf install -y tar gzip curl git jq httpd-tools
