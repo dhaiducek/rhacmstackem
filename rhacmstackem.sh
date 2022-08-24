@@ -126,7 +126,10 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
   fi
   SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
-  RHACM_URL=$(oc get routes multicloud-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
+  RHACM_URL=$(echo "$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}')" || echo "(No RHACM route found.)")
+  if [[ "${RHACM_URL}" != "(No RHACM route found.)" ]]; then
+    RHACM_URL="https://${RHACM_URL}/multicloud/home/welcome"
+  fi
   # Get expiration time from the ClusterClaim
   unset KUBECONFIG
   CLAIM_CREATION=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
