@@ -43,18 +43,20 @@ if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_N
     delete)
       CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}  -o jsonpath='{.spec.namespace}')
       oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
-      echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
-      READY="false"
-      ATTEMPTS=0
-      MAX_ATTEMPTS=10
-      INTERVAL=30
-      while (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}) && (( ATTEMPTS != MAX_ATTEMPTS )); do
-        echo "* Waiting another ${INTERVAL}s for cluster deployment cleanup (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-        sleep ${INTERVAL}
-      done
-      if (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT} &>/dev/null); then
-        echo "* Manually deleting ClusterDeployment ${CLUSTERDEPLOYMENT}"
-        oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
+      if [[ -n "${CLUSTERDEPLOYMENT}" ]]; then
+        echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
+        READY="false"
+        ATTEMPTS=0
+        MAX_ATTEMPTS=10
+        INTERVAL=30
+        while (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}) && (( ATTEMPTS != MAX_ATTEMPTS )); do
+          echo "* Waiting another ${INTERVAL}s for cluster deployment cleanup (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+          sleep ${INTERVAL}
+        done
+        if (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT} &>/dev/null); then
+          echo "* Manually deleting ClusterDeployment ${CLUSTERDEPLOYMENT}"
+          oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
+        fi
       fi
       ;;
     update)
@@ -74,43 +76,47 @@ echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"
 ./startrhacm/startrhacm.sh || ERROR_CODE=1
 
-# Point to claimed cluster and set up RBAC users
-if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
-  RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
-  echo "$(date) ##### Setting up RBAC users"
-  export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
-  RBAC_DIR="./resources/rbac"
-  HTPASSWD_FILE="${RBAC_DIR}/htpasswd"
-  touch "${HTPASSWD_FILE}"
-  for access in cluster ns; do
-    for role in cluster-admin admin edit view group; do
-      htpasswd -b "${HTPASSWD_FILE}" e2e-${role}-${access} ${RBAC_PASS}
+# If there weren't failures, continue with cluster setup
+if [[ "${ERROR_CODE}" != "1" ]]; then
+  # Point to claimed cluster and set up RBAC users
+  if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
+    RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
+    echo "$(date) ##### Setting up RBAC users"
+    export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
+    export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
+    RBAC_DIR="./resources/rbac"
+    HTPASSWD_FILE="${RBAC_DIR}/htpasswd"
+    touch "${HTPASSWD_FILE}"
+    for access in cluster ns; do
+      for role in cluster-admin admin edit view group; do
+        htpasswd -b "${HTPASSWD_FILE}" e2e-${role}-${access} ${RBAC_PASS}
+      done
     done
-  done
-  oc create secret generic e2e-users --from-file=htpasswd="${HTPASSWD_FILE}" -n openshift-config || true
-  rm "${HTPASSWD_FILE}"
-  if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
-    oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
+    oc create secret generic e2e-users --from-file=htpasswd="${HTPASSWD_FILE}" -n openshift-config || true
+    rm "${HTPASSWD_FILE}"
+    if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
+      oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
+    fi
+    if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o "${RBAC_IDP_NAME}") ]; then
+      oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders/-","value":{"name":"'${RBAC_IDP_NAME}'","mappingMethod":"claim","type":"HTPasswd","htpasswd":{"fileData":{"name":"e2e-users"}}}}]'
+    fi
+    oc apply --validate=false -k "${RBAC_DIR}"
+    export RBAC_INFO="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\\n*RBAC Password*: ${RBAC_PASS}\\\n"
   fi
-  if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o "${RBAC_IDP_NAME}") ]; then
-    oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders/-","value":{"name":"'${RBAC_IDP_NAME}'","mappingMethod":"claim","type":"HTPasswd","htpasswd":{"fileData":{"name":"e2e-users"}}}}]'
-  fi
-  oc apply --validate=false -k "${RBAC_DIR}"
-  export RBAC_INFO="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\\n*RBAC Password*: ${RBAC_PASS}\\\n"
-fi
 
-if [[ -n "${CONSOLE_BANNER_TEXT}" ]]; then
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
-  oc apply -f ./resources/consolenotification.yaml
-  if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
-    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"},{"op":"replace", "path":"/spec/text", "value":"'${CONSOLE_BANNER_TEXT}'"}]'
-  fi
-  if [[ -n "${CONSOLE_BANNER_COLOR}" ]]; then
-    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/color", "value":"'${CONSOLE_BANNER_COLOR}'"}]'
-  fi
-  if [[ -n "${CONSOLE_BANNER_BGCOLOR}" ]]; then
-    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/backgroundColor", "value":"'${CONSOLE_BANNER_BGCOLOR}'"}]'
+  # Add a custom RHACMStackEm banner to Openshift
+  if [[ -n "${CONSOLE_BANNER_TEXT}" ]]; then
+    export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
+    oc apply -f ./resources/consolenotification.yaml
+    if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"},{"op":"replace", "path":"/spec/text", "value":"'${CONSOLE_BANNER_TEXT}'"}]'
+    fi
+    if [[ -n "${CONSOLE_BANNER_COLOR}" ]]; then
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/color", "value":"'${CONSOLE_BANNER_COLOR}'"}]'
+    fi
+    if [[ -n "${CONSOLE_BANNER_BGCOLOR}" ]]; then
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/backgroundColor", "value":"'${CONSOLE_BANNER_BGCOLOR}'"}]'
+    fi
   fi
 fi
 
@@ -126,7 +132,7 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
   fi
   SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
-  RHACM_URL=$(echo "$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}')" || echo "(No RHACM route found.)")
+  RHACM_URL=$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
   if [[ "${RHACM_URL}" != "(No RHACM route found.)" ]]; then
     RHACM_URL="https://${RHACM_URL}/multicloud/home/welcome"
   fi
