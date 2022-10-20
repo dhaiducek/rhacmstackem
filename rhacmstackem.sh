@@ -76,43 +76,47 @@ echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"
 ./startrhacm/startrhacm.sh || ERROR_CODE=1
 
-# Point to claimed cluster and set up RBAC users
-if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
-  RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
-  echo "$(date) ##### Setting up RBAC users"
-  export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
-  RBAC_DIR="./resources/rbac"
-  HTPASSWD_FILE="${RBAC_DIR}/htpasswd"
-  touch "${HTPASSWD_FILE}"
-  for access in cluster ns; do
-    for role in cluster-admin admin edit view group; do
-      htpasswd -b "${HTPASSWD_FILE}" e2e-${role}-${access} ${RBAC_PASS}
+# If there weren't failures, continue with cluster setup
+if [[ "${ERROR_CODE}" != "1" ]]; then
+  # Point to claimed cluster and set up RBAC users
+  if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
+    RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
+    echo "$(date) ##### Setting up RBAC users"
+    export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
+    export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
+    RBAC_DIR="./resources/rbac"
+    HTPASSWD_FILE="${RBAC_DIR}/htpasswd"
+    touch "${HTPASSWD_FILE}"
+    for access in cluster ns; do
+      for role in cluster-admin admin edit view group; do
+        htpasswd -b "${HTPASSWD_FILE}" e2e-${role}-${access} ${RBAC_PASS}
+      done
     done
-  done
-  oc create secret generic e2e-users --from-file=htpasswd="${HTPASSWD_FILE}" -n openshift-config || true
-  rm "${HTPASSWD_FILE}"
-  if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
-    oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
+    oc create secret generic e2e-users --from-file=htpasswd="${HTPASSWD_FILE}" -n openshift-config || true
+    rm "${HTPASSWD_FILE}"
+    if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
+      oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
+    fi
+    if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o "${RBAC_IDP_NAME}") ]; then
+      oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders/-","value":{"name":"'${RBAC_IDP_NAME}'","mappingMethod":"claim","type":"HTPasswd","htpasswd":{"fileData":{"name":"e2e-users"}}}}]'
+    fi
+    oc apply --validate=false -k "${RBAC_DIR}"
+    export RBAC_INFO="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\\n*RBAC Password*: ${RBAC_PASS}\\\n"
   fi
-  if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o "${RBAC_IDP_NAME}") ]; then
-    oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders/-","value":{"name":"'${RBAC_IDP_NAME}'","mappingMethod":"claim","type":"HTPasswd","htpasswd":{"fileData":{"name":"e2e-users"}}}}]'
-  fi
-  oc apply --validate=false -k "${RBAC_DIR}"
-  export RBAC_INFO="*RBAC Users*: e2e-<cluster-admin/admin/edit/view>-<cluster/ns>\\\n*RBAC Password*: ${RBAC_PASS}\\\n"
-fi
 
-if [[ -n "${CONSOLE_BANNER_TEXT}" ]]; then
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
-  oc apply -f ./resources/consolenotification.yaml
-  if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
-    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"},{"op":"replace", "path":"/spec/text", "value":"'${CONSOLE_BANNER_TEXT}'"}]'
-  fi
-  if [[ -n "${CONSOLE_BANNER_COLOR}" ]]; then
-    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/color", "value":"'${CONSOLE_BANNER_COLOR}'"}]'
-  fi
-  if [[ -n "${CONSOLE_BANNER_BGCOLOR}" ]]; then
-    oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/backgroundColor", "value":"'${CONSOLE_BANNER_BGCOLOR}'"}]'
+  # Add a custom RHACMStackEm banner to Openshift
+  if [[ -n "${CONSOLE_BANNER_TEXT}" ]]; then
+    export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
+    oc apply -f ./resources/consolenotification.yaml
+    if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"},{"op":"replace", "path":"/spec/text", "value":"'${CONSOLE_BANNER_TEXT}'"}]'
+    fi
+    if [[ -n "${CONSOLE_BANNER_COLOR}" ]]; then
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/color", "value":"'${CONSOLE_BANNER_COLOR}'"}]'
+    fi
+    if [[ -n "${CONSOLE_BANNER_BGCOLOR}" ]]; then
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/backgroundColor", "value":"'${CONSOLE_BANNER_BGCOLOR}'"}]'
+    fi
   fi
 fi
 
