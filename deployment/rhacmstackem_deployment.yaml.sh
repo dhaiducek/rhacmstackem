@@ -110,8 +110,6 @@ spec:
               value: "${CLUSTERCLAIM_NAME}"
             - name: CLUSTERCLAIM_LIFETIME
               value: "${CLUSTERCLAIM_LIFETIME:-12h}"
-            - name: AUTH_REDIRECT_PATHS
-              value: "${AUTH_REDIRECT_PATHS}"
             - name: INSTALL_ICSP
               value: "${INSTALL_ICSP:-false}"
             - name: CLAIM_REUSE

@@ -37,7 +37,6 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
   export CLUSTERPOOL_POST_DEPLOY_SIZE="" # Set the size of the ClusterPool post-deployment
   export CLUSTERCLAIM_NAME="" # Name to use for ClusterClaim (default: "rhacmstackem-${CLUSTERPOOL_NAME}")
   export CLUSTERCLAIM_LIFETIME="" # Lifetime of claimed cluster (default: "12h")
-  export AUTH_REDIRECT_PATHS="" # Oauth redirect paths in a space-separated string (default: "") Example: "/ /path1/ /path2/"
   export RBAC_SETUP="" # Whether to set up RBAC users on the cluster (default: "true")
   export RBAC_IDP_NAME="" # Custom name for identity provider (default: "e2e-htpasswd")
   export INSTALL_ICSP="" # Whether to install ImageContentSourcePolicy to access downstream repos (default: "false")
