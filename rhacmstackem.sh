@@ -91,6 +91,7 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
         htpasswd -b "${HTPASSWD_FILE}" e2e-${role}-${access} ${RBAC_PASS}
       done
     done
+    oc create secret generic e2e-pass --from-literal=password="${RBAC_PASS}" -n openshift-config || true
     oc create secret generic e2e-users --from-file=htpasswd="${HTPASSWD_FILE}" -n openshift-config || true
     rm "${HTPASSWD_FILE}"
     if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
