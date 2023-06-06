@@ -124,37 +124,46 @@ fi
 if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]] ); then
   echo "$(date) ##### Posting information to Slack"
   # Point to claimed cluster and retrieve cluster information
-  export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
+  KUBECONFIG_FILE="${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig"
+  if [[ -f "${KUBECONFIG_FILE}" ]]; then
+    export KUBECONFIG="${KUBECONFIG_FILE}"
+  fi
   # Set greeting based on error code from StartRHACM
   if [[ "${ERROR_CODE}" == "1" ]]; then
-    GREETING=":red_circle: RHACM deployment failed. The \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y") may need to be debugged before use."
+    GREETING=":red_circle: RHACM deployment failed. The \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y") may need to be debugged before use or a redeployment may be in progress."
   else
     GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
   fi
-  SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$")
-  RHACM_URL=$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
-  if [[ "${RHACM_URL}" != "(No RHACM route found.)" ]]; then
-    RHACM_URL="https://${RHACM_URL}/multicloud/home/welcome"
+  if [[ -n "${KUBECONFIG}" ]]; then
+    SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$" || echo "(No snapshot found.)")
+    RHACM_URL=$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
+    if [[ "${RHACM_URL}" != "(No RHACM route found.)" ]]; then
+      RHACM_URL="https://${RHACM_URL}/multicloud/home/welcome"
+    fi
+    # Get expiration time from the ClusterClaim
+    unset KUBECONFIG
+    CLAIM_CREATION=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
+    LIFETIME_DIFF="+$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+    CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
+    LIFETIME="${CLUSTERCLAIM_LIFETIME} from $(date -d "${CLAIM_CREATION}" "+%I:%M %p %Z")"
+    CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
+      | awk -v GREETING="${GREETING}" -v LIFETIME="${LIFETIME}" -v SNAPSHOT="${SNAPSHOT}" -v RBAC_INFO="${RBAC_INFO}" -v RHACM_URL="${RHACM_URL}" \
+      'BEGIN{printf "{\"text\":\""GREETING"\\n*Lifetime*: "LIFETIME"\\n*Snapshot*: "SNAPSHOT"\\n"RBAC_INFO};{printf "%s\\n", $0};END{printf "*RHACM URL*: "RHACM_URL"\\n\"}"}')
+  else
+    CREDENTIAL_DATA="{\"text\":\"${GREETING}\n(ClusterClaim failed to deploy.)\"}"
   fi
-  # Get expiration time from the ClusterClaim
-  unset KUBECONFIG
-  CLAIM_CREATION=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
-  LIFETIME_DIFF="+$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
-  CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
-  LIFETIME="${CLUSTERCLAIM_LIFETIME} from $(date -d "${CLAIM_CREATION}" "+%I:%M %p %Z")"
-  CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
-    | awk -v GREETING="${GREETING}" -v LIFETIME="${LIFETIME}" -v SNAPSHOT="${SNAPSHOT}" -v RBAC_INFO="${RBAC_INFO}" -v RHACM_URL="${RHACM_URL}" \
-    'BEGIN{printf "{\"text\":\""GREETING"\\n*Lifetime*: "LIFETIME"\\n*Snapshot*: "SNAPSHOT"\\n"RBAC_INFO};{printf "%s\\n", $0};END{printf "*RHACM URL*: "RHACM_URL"\\n\"}"}')
   # Prefer using token and Slack API for both credentials and scheduled expiration post (Fall back to Incoming Webhook to post credentials to Slack (no expiration post))
   if [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; then
     # Post credentials to Slack using the Slack API
     echo "* Sending credentials to Slack via token"
     curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${CREDENTIAL_DATA}" ${SLACK_URL}
-    # Schedule a Slack message 20 minutes before the cluster expiration time
-    EXPIRATION_DATA="{\"channel\": \"${SLACK_CHANNEL_ID}\",\"text\": \"*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the \`${CLUSTERCLAIM_NAME}\` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:\", \"post_at\": ${CLAIM_EXPIRATION}}"
-    # Schedule a Slack message 20 minutes before the cluster expiration time
-    echo "* Scheduling expiration post to Slack via token"
-    curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${EXPIRATION_DATA}" https://slack.com/api/chat.scheduleMessage | jq '{OK: .ok, POST_AT: .post_at, ERRORS: .error,  MESSAGES: .response_metadata.messages}'
+    if [[ -n "${CLAIM_EXPIRATION}" ]]; then
+      # Schedule a Slack message 20 minutes before the cluster expiration time
+      EXPIRATION_DATA="{\"channel\": \"${SLACK_CHANNEL_ID}\",\"text\": \"*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the \`${CLUSTERCLAIM_NAME}\` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:\", \"post_at\": ${CLAIM_EXPIRATION}}"
+      # Schedule a Slack message 20 minutes before the cluster expiration time
+      echo "* Scheduling expiration post to Slack via token"
+      curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${EXPIRATION_DATA}" https://slack.com/api/chat.scheduleMessage | jq '{OK: .ok, POST_AT: .post_at, ERRORS: .error,  MESSAGES: .response_metadata.messages}'
+    fi
   elif [[ -n "${SLACK_URL}" ]]; then
     # Post credentials to Slack using the Incoming Webhook (no expiration post)
     echo "* Sending credentials to Slack via incoming webhook"
