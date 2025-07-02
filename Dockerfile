@@ -1,11 +1,11 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest
 
 # Add RHACMStackEm script and YAML resources
 ADD rhacmstackem.sh .
 ADD resources/ resources/
 
 # Install microdnf packages: tar/gzip, curl, git, jq, htpasswd
-RUN microdnf update -y && microdnf install -y tar gzip curl git jq httpd-tools
+RUN microdnf update -y && microdnf install -y tar gzip curl git jq httpd-tools skopeo
 # Install yq
 RUN curl -sLO https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64.tar.gz -o yq_linux_amd64.tar.gz && \
     tar xzf yq_linux_amd64.tar.gz && chmod +x yq_linux_amd64 && mv yq_linux_amd64 /usr/local/bin/yq && rm yq_linux_amd64.tar.gz

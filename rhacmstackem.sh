@@ -109,7 +109,10 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
     export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
     oc apply -f ./resources/consolenotification.yaml
     if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
-      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"},{"op":"replace", "path":"/spec/text", "value":"'"${CONSOLE_BANNER_TEXT}"'"}]'
+      if [[ "${PRESERVE_CONSOLE_BANNER_LINK}" != "true" ]]; then
+        oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"}'
+      fi
+      oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/text", "value":"'"${CONSOLE_BANNER_TEXT}"'"}]'
     fi
     if [[ -n "${CONSOLE_BANNER_COLOR}" ]]; then
       oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/color", "value":"'"${CONSOLE_BANNER_COLOR}"'"}]'
@@ -135,7 +138,15 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
   fi
   if [[ -n "${KUBECONFIG}" ]]; then
-    SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$" || echo "(No snapshot found.)")
+    if [[ -z "${ACM_CATALOG_TAG}" ]]; then
+      SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$" || echo "(No snapshot found.)")
+    else
+      echo "${QUAY_TOKEN}" | base64 -d > authfile.json
+      skopeo inspect "docker://quay.io/acm-d/acm-dev-catalog:${ACM_CATALOG_TAG}" --no-tags --authfile=authfile.json > inspect.json
+      cat inspect.json
+      SNAPSHOT=$(jq -r '.Labels."konflux.additional-tags"' inspect.json)
+    fi
+    
     RHACM_URL=$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
     if [[ "${RHACM_URL}" != "(No RHACM route found.)" ]]; then
       RHACM_URL="https://${RHACM_URL}/multicloud/home/welcome"
