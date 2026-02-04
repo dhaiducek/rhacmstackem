@@ -110,7 +110,7 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
     oc apply -f ./resources/consolenotification.yaml
     if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
       if [[ "${PRESERVE_CONSOLE_BANNER_LINK}" != "true" ]]; then
-        oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"}'
+        oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"remove", "path":"/spec/link"}]'
       fi
       oc patch consolenotification.console.openshift.io/rhacmstackem --type json --patch '[{"op":"replace", "path":"/spec/text", "value":"'"${CONSOLE_BANNER_TEXT}"'"}]'
     fi
