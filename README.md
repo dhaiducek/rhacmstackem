@@ -54,6 +54,7 @@ Image URL: `quay.io/dhaiduce/rhacmstackem`
    export RBAC_SETUP="" # Whether to set up RBAC users on the cluster (default: "true")
    export RBAC_IDP_NAME="" # Custom name for identity provider (default: "e2e-htpasswd")
    export INSTALL_IDMS="" # Whether to install ImageDigestMirrorSet to access downstream repos (default: "false")
+   export INSTALL_CERTIFICATE="" # Whether to install cluster certificate (default: "false")
    export CLAIM_REUSE="" # Controls initial cleanup behavior (default: "delete"): "delete" - Delete existing claims prior to a deploy; "update" - Reuse existing claim; Any other non-empty value will exit the script and not attempt to deploy
    export CONSOLE_BANNER_TEXT="" # Text to put in a banner at the top of the OpenShift console (Use "default" to advertise for RHACMStackEm, leave empty to skip the banner)
    export CONSOLE_BANNER_COLOR="#fff" # Color of the text in the banner

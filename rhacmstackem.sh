@@ -10,6 +10,7 @@ git clone https://github.com/dhaiducek/startrhacm.git
 git clone https://github.com/stolostron/lifeguard.git
 git clone "https://${GIT_USER}:${GIT_TOKEN}@github.com/stolostron/pipeline.git"
 git clone https://github.com/stolostron/deploy.git
+git clone https://github.com/nitin-dhevar/cluster-cert.git
 
 export LIFEGUARD_PATH=/lifeguard
 export RHACM_PIPELINE_PATH=/pipeline
@@ -22,7 +23,8 @@ if [[ -z "${QUAY_TOKEN}" ]]; then
   exit 1
 else
   # Re-encode Quay token for Deploy
-  export QUAY_TOKEN=$(echo -n "${QUAY_TOKEN}" | base64 -w 0)
+  export QUAY_TOKEN
+  QUAY_TOKEN=$(echo -n "${QUAY_TOKEN}" | base64 -w 0)
 fi
 
 # ClusterClaim exports
@@ -39,32 +41,31 @@ echo "$(date) ##### Checking for existing claims named ${CLUSTERCLAIM_NAME}"
 if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME} &>/dev/null); then
   echo "* Existing claim found"
   case "${CLAIM_REUSE:-"delete"}" in
-    delete)
-      CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}  -o jsonpath='{.spec.namespace}')
-      oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
-      if [[ -n "${CLUSTERDEPLOYMENT}" ]]; then
-        echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
-        READY="false"
-        ATTEMPTS=0
-        MAX_ATTEMPTS=10
-        INTERVAL=30
-        while (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}) && (( ATTEMPTS != MAX_ATTEMPTS )); do
-          echo "* Waiting another ${INTERVAL}s for cluster deployment cleanup (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-          sleep ${INTERVAL}
-        done
-        if (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT} &>/dev/null); then
-          echo "* Manually deleting ClusterDeployment ${CLUSTERDEPLOYMENT}"
-          oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
-        fi
+  delete)
+    CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.namespace}')
+    oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
+    if [[ -n "${CLUSTERDEPLOYMENT}" ]]; then
+      echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
+      ATTEMPTS=0
+      MAX_ATTEMPTS=10
+      INTERVAL=30
+      while (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}) && ((ATTEMPTS != MAX_ATTEMPTS)); do
+        echo "* Waiting another ${INTERVAL}s for cluster deployment cleanup (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+        sleep ${INTERVAL}
+      done
+      if (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT} &>/dev/null); then
+        echo "* Manually deleting ClusterDeployment ${CLUSTERDEPLOYMENT}"
+        oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
       fi
-      ;;
-    update)
-      echo "* Reusing existing claim"
-      ;;
-    *)
-      echo "^^^^^ Unrecognized value found in CLAIM_REUSE: '${CLAIM_REUSE}'"
-      exit 1
-      ;;
+    fi
+    ;;
+  update)
+    echo "* Reusing existing claim"
+    ;;
+  *)
+    echo "^^^^^ Unrecognized value found in CLAIM_REUSE: '${CLAIM_REUSE}'"
+    exit 1
+    ;;
   esac
 else
   echo "* No existing claim found"
@@ -81,7 +82,8 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
   if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
     RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
     echo "$(date) ##### Setting up RBAC users"
-    export RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
+    export RBAC_PASS
+    RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
     export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
     RBAC_DIR="./resources/rbac"
     HTPASSWD_FILE="${RBAC_DIR}/htpasswd"
@@ -97,7 +99,7 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
     if [[ -z "$(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders}')" ]]; then
       oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders","value":[]}]'
     fi
-    if [ ! $(oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -o "${RBAC_IDP_NAME}") ]; then
+    if ! oc -n openshift-config get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}' | grep -q "${RBAC_IDP_NAME}"; then
       oc patch -n openshift-config oauth cluster --type json --patch '[{"op":"add","path":"/spec/identityProviders/-","value":{"name":"'"${RBAC_IDP_NAME}"'","mappingMethod":"claim","type":"HTPasswd","htpasswd":{"fileData":{"name":"e2e-users"}}}}]'
     fi
     oc apply --validate=false -k "${RBAC_DIR}"
@@ -124,7 +126,7 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
 fi
 
 # Send cluster information to Slack
-if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]] ); then
+if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; }; then
   echo "$(date) ##### Posting information to Slack"
   # Point to claimed cluster and retrieve cluster information
   KUBECONFIG_FILE="${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig"
@@ -141,26 +143,26 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     if [[ -z "${ACM_CATALOG_TAG}" ]]; then
       SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$" || echo "(No snapshot found.)")
     else
-      echo "${QUAY_TOKEN}" | base64 -d > authfile.json
-      skopeo inspect "docker://quay.io/acm-d/acm-dev-catalog:${ACM_CATALOG_TAG}" --no-tags --authfile=authfile.json > inspect.json
+      echo "${QUAY_TOKEN}" | base64 -d >authfile.json
+      skopeo inspect "docker://quay.io/acm-d/acm-dev-catalog:${ACM_CATALOG_TAG}" --no-tags --authfile=authfile.json >inspect.json
       cat inspect.json
       SNAPSHOT=$(jq -r '.Labels."konflux.additional-tags"' inspect.json)
     fi
-    
+
     RHACM_URL=$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
     if [[ "${RHACM_URL}" != "(No RHACM route found.)" ]]; then
       RHACM_URL="https://${RHACM_URL}/multicloud/home/welcome"
     fi
     # Get expiration time from the ClusterClaim
     unset KUBECONFIG
-    CLAIM_CREATION=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.metadata.creationTimestamp})
-    LIFETIME_DIFF="+$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath={.spec.lifetime} | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+    CLAIM_CREATION=$(oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.metadata.creationTimestamp}')
+    LIFETIME_DIFF="+$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.spec.lifetime}' | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
     CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
     LIFETIME="${CLUSTERCLAIM_LIFETIME} from $(date -d "${CLAIM_CREATION}" "+%I:%M %p %Z")"
     OCP_LOGIN="$(tail -1 ${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/oc-login.sh)"
-    CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json \
-      | awk -v GREETING="${GREETING}" -v LIFETIME="${LIFETIME}" -v SNAPSHOT="${SNAPSHOT}" -v RBAC_INFO="${RBAC_INFO}" -v RHACM_URL="${RHACM_URL}" -v OCP_LOGIN="${OCP_LOGIN}" \
-      'BEGIN{printf "{\"text\":\""GREETING"\\n*Lifetime*: "LIFETIME"\\n*Snapshot*: "SNAPSHOT"\\n"RBAC_INFO};{printf "%s\\n", $0};END{printf "*RHACM URL*: "RHACM_URL"\\n```"OCP_LOGIN"```\"}"}')
+    CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json |
+      awk -v GREETING="${GREETING}" -v LIFETIME="${LIFETIME}" -v SNAPSHOT="${SNAPSHOT}" -v RBAC_INFO="${RBAC_INFO}" -v RHACM_URL="${RHACM_URL}" -v OCP_LOGIN="${OCP_LOGIN}" \
+        'BEGIN{printf "{\"text\":\""GREETING"\\n*Lifetime*: "LIFETIME"\\n*Snapshot*: "SNAPSHOT"\\n"RBAC_INFO};{printf "%s\\n", $0};END{printf "*RHACM URL*: "RHACM_URL"\\n```"OCP_LOGIN"```\"}"}')
   else
     CREDENTIAL_DATA="{\"text\":\"${GREETING}\n(ClusterClaim failed to deploy.)\"}"
   fi
@@ -181,6 +183,27 @@ if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     echo "* Sending credentials to Slack via incoming webhook"
     curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" ${SLACK_URL}
   fi
+fi
+
+if [[ "${INSTALL_CERTIFICATE}" == "true" ]] && [[ "${ERROR_CODE}" != "1" ]]; then
+  # Fetch ClusterDeployment and Hosted Zone name from ClusterPool host
+  unset KUBECONFIG
+  echo "* Installing cluster certificate"
+
+  clusterdeployment_json=$(oc get -n "${CLUSTERPOOL_TARGET_NAMESPACE}" clusterclaim.hive "${CLUSTERCLAIM_NAME}" -o json)
+  clusterdeployment=$(jq -r '.spec.namespace // ""' <<<"${clusterdeployment_json}")
+  hosted_zone_name=$(jq -r '.spec.baseDomain // ""' <<<"${clusterdeployment_json}")
+
+  echo "ClusterDeployment name: ${clusterdeployment}"
+  echo "Hosted zone name: ${hosted_zone_name}"
+
+  if [[ -z "${clusterdeployment}" || -z "${hosted_zone_name}" ]]; then
+    echo "ERROR: Could not determine clusterdeployment namespace or baseDomain from ClusterClaim"
+    exit 1
+  fi
+
+  # Add certificate
+  ./cluster-cert/apply-apps-cert.sh "${clusterdeployment}" "${hosted_zone_name}" "${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig" "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERCLAIM_LIFETIME}"
 fi
 
 exit ${ERROR_CODE}
