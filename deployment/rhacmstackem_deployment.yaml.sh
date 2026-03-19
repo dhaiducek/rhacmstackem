@@ -110,8 +110,8 @@ spec:
               value: "${CLUSTERCLAIM_NAME}"
             - name: CLUSTERCLAIM_LIFETIME
               value: "${CLUSTERCLAIM_LIFETIME:-12h}"
-            - name: INSTALL_ICSP
-              value: "${INSTALL_ICSP:-false}"
+            - name: INSTALL_IDMS
+              value: "${INSTALL_IDMS:-false}"
             - name: CLAIM_REUSE
               value: "${CLAIM_REUSE}" 
 EOF
