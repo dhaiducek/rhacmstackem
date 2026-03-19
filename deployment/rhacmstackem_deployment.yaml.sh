@@ -112,6 +112,8 @@ spec:
               value: "${CLUSTERCLAIM_LIFETIME:-12h}"
             - name: INSTALL_IDMS
               value: "${INSTALL_IDMS:-false}"
+            - name: INSTALL_CERTIFICATE
+              value: "${INSTALL_CERTIFICATE:-false}"
             - name: CLAIM_REUSE
               value: "${CLAIM_REUSE}" 
 EOF
