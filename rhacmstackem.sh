@@ -32,7 +32,7 @@ export CLUSTERPOOL_MIN_SIZE=${CLUSTERPOOL_MIN_SIZE:-"1"}
 export CLUSTERCLAIM_NAME=${CLUSTERCLAIM_NAME:-"rhacmstackem-${CLUSTERPOOL_NAME}"}
 export CLUSTERCLAIM_GROUP_NAME=${CLUSTERCLAIM_GROUP_NAME:-"ERROR: Please specify CLUSTERCLAIM_GROUP_NAME in environment variables"}
 export CLUSTERCLAIM_LIFETIME=${CLUSTERCLAIM_LIFETIME:-"12h"}
-export INSTALL_ICSP=${INSTALL_ICSP:-"false"}
+export INSTALL_IDMS=${INSTALL_IDMS:-"false"}
 
 # Check for existing claims of the same name
 echo "$(date) ##### Checking for existing claims named ${CLUSTERCLAIM_NAME}"
