@@ -38,12 +38,12 @@ export INSTALL_IDMS=${INSTALL_IDMS:-"false"}
 
 # Check for existing claims of the same name
 echo "$(date) ##### Checking for existing claims named ${CLUSTERCLAIM_NAME}"
-if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME} &>/dev/null); then
+if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME} &>/dev/null); then
   echo "* Existing claim found"
   case "${CLAIM_REUSE:-"delete"}" in
   delete)
-    CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.namespace}')
-    oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaim.hive ${CLUSTERCLAIM_NAME}
+    CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.namespace}')
+    oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME}
     if [[ -n "${CLUSTERDEPLOYMENT}" ]]; then
       echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
       ATTEMPTS=0
@@ -155,8 +155,8 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     fi
     # Get expiration time from the ClusterClaim
     unset KUBECONFIG
-    CLAIM_CREATION=$(oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.metadata.creationTimestamp}')
-    LIFETIME_DIFF="+$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.spec.lifetime}' | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+    CLAIM_CREATION=$(oc get clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.metadata.creationTimestamp}')
+    LIFETIME_DIFF="+$(oc get clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.spec.lifetime}' | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
     CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
     LIFETIME="${CLUSTERCLAIM_LIFETIME} from $(date -d "${CLAIM_CREATION}" "+%I:%M %p %Z")"
     OCP_LOGIN="$(tail -1 ${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/oc-login.sh)"
@@ -170,18 +170,21 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   if [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; then
     # Post credentials to Slack using the Slack API
     echo "* Sending credentials to Slack via token"
-    curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${CREDENTIAL_DATA}" ${SLACK_URL}
+    curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${CREDENTIAL_DATA}" "${SLACK_URL}"
+    echo
     if [[ -n "${CLAIM_EXPIRATION}" ]]; then
       # Schedule a Slack message 20 minutes before the cluster expiration time
       EXPIRATION_DATA="{\"channel\": \"${SLACK_CHANNEL_ID}\",\"text\": \"*EXPIRATION ALERT*\\nToday's cluster will expire in about 20 minutes. Please update the lifetime of the \`${CLUSTERCLAIM_NAME}\` ClusterClaim if you need it longer.\\n Have a great day! :slightly_smiling_face:\", \"post_at\": ${CLAIM_EXPIRATION}}"
       # Schedule a Slack message 20 minutes before the cluster expiration time
       echo "* Scheduling expiration post to Slack via token"
       curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${EXPIRATION_DATA}" https://slack.com/api/chat.scheduleMessage | jq '{OK: .ok, POST_AT: .post_at, ERRORS: .error,  MESSAGES: .response_metadata.messages}'
+      echo
     fi
   elif [[ -n "${SLACK_URL}" ]]; then
     # Post credentials to Slack using the Incoming Webhook (no expiration post)
     echo "* Sending credentials to Slack via incoming webhook"
-    curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" ${SLACK_URL}
+    curl -X POST -H 'Content-type: application/json' --data "${CREDENTIAL_DATA}" "${SLACK_URL}"
+    echo
   fi
 fi
 
@@ -190,20 +193,24 @@ if [[ "${INSTALL_CERTIFICATE}" == "true" ]] && [[ "${ERROR_CODE}" != "1" ]]; the
   unset KUBECONFIG
   echo "* Installing cluster certificate"
 
-  clusterdeployment_json=$(oc get -n "${CLUSTERPOOL_TARGET_NAMESPACE}" clusterclaim.hive "${CLUSTERCLAIM_NAME}" -o json)
-  clusterdeployment=$(jq -r '.spec.namespace // ""' <<<"${clusterdeployment_json}")
-  hosted_zone_name=$(jq -r '.spec.baseDomain // ""' <<<"${clusterdeployment_json}")
+  clusterdeployment=$(oc get  clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.namespace}')
+  hosted_zone_name=$(oc get -n "${clusterdeployment}" clusterdeployments.hive.openshift.io "${clusterdeployment}" -o jsonpath='{.spec.baseDomain}')
 
   echo "ClusterDeployment name: ${clusterdeployment}"
   echo "Hosted zone name: ${hosted_zone_name}"
 
   if [[ -z "${clusterdeployment}" || -z "${hosted_zone_name}" ]]; then
     echo "ERROR: Could not determine clusterdeployment namespace or baseDomain from ClusterClaim"
-    exit 1
+    exit ${ERROR_CODE}
   fi
 
   # Add certificate
-  ./cluster-cert/apply-apps-cert.sh "${clusterdeployment}" "${hosted_zone_name}" "${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig" "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERCLAIM_LIFETIME}"
+  ./cluster-cert/apply-apps-cert.sh \
+    "${clusterdeployment}" \
+    "${hosted_zone_name}" \
+    "${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig" \
+    "${CLUSTERPOOL_TARGET_NAMESPACE}" \
+    "${CLUSTERCLAIM_LIFETIME}"
 fi
 
 exit ${ERROR_CODE}
