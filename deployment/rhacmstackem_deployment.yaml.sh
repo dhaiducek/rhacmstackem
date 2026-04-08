@@ -22,20 +22,20 @@ kind: Secret
 metadata:
   name: rhacmstackem-github-secret
 data:
-  user: $(printf "${GIT_USER}" | base64)
-  token: $(printf "${GIT_TOKEN}" | base64)
+  user: $(printf '%s' "${GIT_USER}" | base64)
+  token: $(printf '%s' "${GIT_TOKEN}" | base64)
 EOF
 
-if [[ -n "${SLACK_URL}" ]] || ( [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]] ); then
+if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; }; then
 cat >rhacmstackem-slack-secret.yaml <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
   name: rhacmstackem-slack-secret
 data:
-$(test -n "${SLACK_URL}" && printf "  url: $(printf "${SLACK_URL}" | base64)\n")
-$(test -n "${SLACK_TOKEN}" && printf "  token: $(printf "${SLACK_TOKEN}" | base64)\n")
-$(test -n "${SLACK_CHANNEL_ID}" && printf "  channel_id: $(printf "${SLACK_CHANNEL_ID}" | base64)\n")
+$(test -n "${SLACK_URL}" && echo "  url: $(printf '%s' "${SLACK_URL}" | base64)")
+$(test -n "${SLACK_TOKEN}" && echo "  token: $(printf '%s' "${SLACK_TOKEN}" | base64)")
+$(test -n "${SLACK_CHANNEL_ID}" && echo "  channel_id: $(printf '%s' "${SLACK_CHANNEL_ID}" | base64)")
 EOF
 else
   printf "\n* Slack credentials not provided--skipping creation of Slack secret YAML\n"

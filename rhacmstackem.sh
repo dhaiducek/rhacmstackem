@@ -24,7 +24,7 @@ if [[ -z "${QUAY_TOKEN}" ]]; then
 else
   # Re-encode Quay token for Deploy
   export QUAY_TOKEN
-  QUAY_TOKEN=$(echo -n "${QUAY_TOKEN}" | base64 -w 0)
+  QUAY_TOKEN=$(printf '%s' "${QUAY_TOKEN}" | base64 -w 0)
 fi
 
 # ClusterClaim exports
@@ -38,24 +38,24 @@ export INSTALL_IDMS=${INSTALL_IDMS:-"false"}
 
 # Check for existing claims of the same name
 echo "$(date) ##### Checking for existing claims named ${CLUSTERCLAIM_NAME}"
-if (oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME} &>/dev/null); then
+if (oc get -n "${CLUSTERPOOL_TARGET_NAMESPACE}" clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" &>/dev/null); then
   echo "* Existing claim found"
   case "${CLAIM_REUSE:-"delete"}" in
   delete)
-    CLUSTERDEPLOYMENT=$(oc get -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.namespace}')
-    oc delete -n ${CLUSTERPOOL_TARGET_NAMESPACE} clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME}
+    CLUSTERDEPLOYMENT=$(oc get -n "${CLUSTERPOOL_TARGET_NAMESPACE}" clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -o jsonpath='{.spec.namespace}')
+    oc delete -n "${CLUSTERPOOL_TARGET_NAMESPACE}" clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}"
     if [[ -n "${CLUSTERDEPLOYMENT}" ]]; then
       echo "* Waiting up to 5 minutes for Hive to process ClusterDeployment for deletion"
       ATTEMPTS=0
       MAX_ATTEMPTS=10
       INTERVAL=30
-      while (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}) && ((ATTEMPTS != MAX_ATTEMPTS)); do
+      while (oc get -n "${CLUSTERDEPLOYMENT}" clusterdeployment.hive "${CLUSTERDEPLOYMENT}") && ((ATTEMPTS != MAX_ATTEMPTS)); do
         echo "* Waiting another ${INTERVAL}s for cluster deployment cleanup (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
         sleep ${INTERVAL}
       done
-      if (oc get -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT} &>/dev/null); then
+      if (oc get -n "${CLUSTERDEPLOYMENT}" clusterdeployment.hive "${CLUSTERDEPLOYMENT}" &>/dev/null); then
         echo "* Manually deleting ClusterDeployment ${CLUSTERDEPLOYMENT}"
-        oc delete -n ${CLUSTERDEPLOYMENT} clusterdeployment.hive ${CLUSTERDEPLOYMENT}
+        oc delete -n "${CLUSTERDEPLOYMENT}" clusterdeployment.hive "${CLUSTERDEPLOYMENT}"
       fi
     fi
     ;;
@@ -90,7 +90,7 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
     touch "${HTPASSWD_FILE}"
     for access in cluster ns; do
       for role in cluster-admin admin edit view group; do
-        htpasswd -b "${HTPASSWD_FILE}" e2e-${role}-${access} ${RBAC_PASS}
+        htpasswd -b "${HTPASSWD_FILE}" "e2e-${role}-${access}" "${RBAC_PASS}"
       done
     done
     oc create secret generic e2e-pass --from-literal=password="${RBAC_PASS}" -n openshift-config || true
@@ -155,12 +155,12 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     fi
     # Get expiration time from the ClusterClaim
     unset KUBECONFIG
-    CLAIM_CREATION=$(oc get clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.metadata.creationTimestamp}')
-    LIFETIME_DIFF="+$(oc get clusterclaims.hive.openshift.io ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.spec.lifetime}' | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
+    CLAIM_CREATION=$(oc get clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.metadata.creationTimestamp}')
+    LIFETIME_DIFF="+$(oc get clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.lifetime}' | sed 's/h/hour/' | sed 's/m/min/' | sed 's/s/sec/')"
     CLAIM_EXPIRATION=$(date -d "${CLAIM_CREATION}${LIFETIME_DIFF}-20min" +%s)
     LIFETIME="${CLUSTERCLAIM_LIFETIME} from $(date -d "${CLAIM_CREATION}" "+%I:%M %p %Z")"
-    OCP_LOGIN="$(tail -1 ${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/oc-login.sh)"
-    CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' ${LIFEGUARD_PATH}/clusterclaims/*/*.creds.json |
+    OCP_LOGIN="$(tail -1 "${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/oc-login.sh")"
+    CREDENTIAL_DATA=$(jq -r 'to_entries[] | "*\(.key)*: \(.value)"' "${LIFEGUARD_PATH}"/clusterclaims/*/*.creds.json |
       awk -v GREETING="${GREETING}" -v LIFETIME="${LIFETIME}" -v SNAPSHOT="${SNAPSHOT}" -v RBAC_INFO="${RBAC_INFO}" -v RHACM_URL="${RHACM_URL}" -v OCP_LOGIN="${OCP_LOGIN}" \
         'BEGIN{printf "{\"text\":\""GREETING"\\n*Lifetime*: "LIFETIME"\\n*Snapshot*: "SNAPSHOT"\\n"RBAC_INFO};{printf "%s\\n", $0};END{printf "*RHACM URL*: "RHACM_URL"\\n```"OCP_LOGIN"```\"}"}')
   else
@@ -170,7 +170,9 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   if [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; then
     # Post credentials to Slack using the Slack API
     echo "* Sending credentials to Slack via token"
-    curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" --data "${CREDENTIAL_DATA}" "${SLACK_URL}"
+    TOKEN_CREDENTIAL_DATA=$(jq -c --arg channel "${SLACK_CHANNEL_ID}" '. + {channel: $channel}' <<<"${CREDENTIAL_DATA}")
+    curl -X POST -H 'Content-type: application/json' -H "Authorization: Bearer ${SLACK_TOKEN}" \
+      --data "${TOKEN_CREDENTIAL_DATA}" "https://slack.com/api/chat.postMessage"
     echo
     if [[ -n "${CLAIM_EXPIRATION}" ]]; then
       # Schedule a Slack message 20 minutes before the cluster expiration time
