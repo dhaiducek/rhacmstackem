@@ -41,6 +41,45 @@ else
   printf "\n* Slack credentials not provided--skipping creation of Slack secret YAML\n"
 fi
 
+if [[ "${INSTALL_CERTIFICATE}" == "true" ]] && [[ -n "${HOSTED_ZONE_ID}" ]] && [[ -n "${AWS_SECRET}" ]]; then
+cat >rhacmstackem-issuer.yaml <<EOF
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: public-cluster-issuer
+  namespace: ${CLUSTERPOOL_TARGET_NAMESPACE}
+spec:
+  acme:
+    email: acm-cicd@redhat.com
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+    - http01:
+        ingress:
+          class: haproxy
+      selector:
+        matchLabels:
+          use-http01-solver: "true"
+    - dns01:
+        cnameStrategy: Follow
+        route53:
+          accessKeyIDSecretRef:
+            key: aws_access_key_id
+            name: ${AWS_SECRET}
+          region: us-east-1
+          hostedZoneID: ${HOSTED_ZONE_ID}
+          secretAccessKeySecretRef:
+            key: aws_secret_access_key
+            name: ${AWS_SECRET}
+      selector:
+        matchLabels:
+          use-dns01-solver: "true"
+EOF
+else
+  printf "\n* Certificate installation not requested--skipping creation of Issuer YAML\n"
+fi
+
 cat >rhacmstackem-cronjob.yaml <<EOF
 apiVersion: batch/v1beta1
 kind: CronJob
