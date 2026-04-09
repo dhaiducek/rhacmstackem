@@ -10,7 +10,6 @@ git clone https://github.com/dhaiducek/startrhacm.git
 git clone https://github.com/stolostron/lifeguard.git
 git clone "https://${GIT_USER}:${GIT_TOKEN}@github.com/stolostron/pipeline.git"
 git clone https://github.com/stolostron/deploy.git
-git clone https://github.com/nitin-dhevar/cluster-cert.git
 
 export LIFEGUARD_PATH=/lifeguard
 export RHACM_PIPELINE_PATH=/pipeline
@@ -76,15 +75,19 @@ echo "$(date) ##### Running StartRHACM"
 export DISABLE_CLUSTER_CHECK="true"
 ./startrhacm/startrhacm.sh || ERROR_CODE=1
 
+export CLUSTER_KUBECONFIG_FILE="${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig"
+if [[ -f "${CLUSTER_KUBECONFIG_FILE}" ]]; then
+  export KUBECONFIG="${CLUSTER_KUBECONFIG_FILE}"
+fi
+
 # If there weren't failures, continue with cluster setup
-if [[ "${ERROR_CODE}" != "1" ]]; then
+if [[ "${ERROR_CODE}" != "1" ]] && [[ -n "${KUBECONFIG}" ]]; then
   # Point to claimed cluster and set up RBAC users
   if [[ "${RBAC_SETUP:-"true"}" == "true" ]]; then
     RBAC_IDP_NAME=${RBAC_IDP_NAME:-"e2e-htpasswd"}
     echo "$(date) ##### Setting up RBAC users"
     export RBAC_PASS
     RBAC_PASS=$(head /dev/urandom | tr -dc 'A-Za-z0-9' | head -c $((32 + RANDOM % 8)))
-    export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
     RBAC_DIR="./resources/rbac"
     HTPASSWD_FILE="${RBAC_DIR}/htpasswd"
     touch "${HTPASSWD_FILE}"
@@ -108,7 +111,6 @@ if [[ "${ERROR_CODE}" != "1" ]]; then
 
   # Add a custom RHACMStackEm banner to Openshift
   if [[ -n "${CONSOLE_BANNER_TEXT}" ]]; then
-    export KUBECONFIG=${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig
     oc apply -f ./resources/consolenotification.yaml
     if [[ "${CONSOLE_BANNER_TEXT}" != "default" ]]; then
       if [[ "${PRESERVE_CONSOLE_BANNER_LINK}" != "true" ]]; then
@@ -128,11 +130,6 @@ fi
 # Send cluster information to Slack
 if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHANNEL_ID}" ]]; }; then
   echo "$(date) ##### Posting information to Slack"
-  # Point to claimed cluster and retrieve cluster information
-  KUBECONFIG_FILE="${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig"
-  if [[ -f "${KUBECONFIG_FILE}" ]]; then
-    export KUBECONFIG="${KUBECONFIG_FILE}"
-  fi
   # Set greeting based on error code from StartRHACM
   if [[ "${ERROR_CODE}" == "1" ]]; then
     GREETING=":red_circle: RHACM deployment failed. The \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y") may need to be debugged before use or a redeployment may be in progress."
@@ -190,29 +187,11 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
   fi
 fi
 
-if [[ "${INSTALL_CERTIFICATE}" == "true" ]] && [[ "${ERROR_CODE}" != "1" ]]; then
-  # Fetch ClusterDeployment and Hosted Zone name from ClusterPool host
+if [[ "${INSTALL_CERTIFICATE}" == "true" ]] && [[ -f "${CLUSTER_KUBECONFIG_FILE}" ]] && [[ "${ERROR_CODE}" != "1" ]]; then
   unset KUBECONFIG
   echo "* Installing cluster certificate"
-
-  clusterdeployment=$(oc get  clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.namespace}')
-  hosted_zone_name=$(oc get -n "${clusterdeployment}" clusterdeployments.hive.openshift.io "${clusterdeployment}" -o jsonpath='{.spec.baseDomain}')
-
-  echo "ClusterDeployment name: ${clusterdeployment}"
-  echo "Hosted zone name: ${hosted_zone_name}"
-
-  if [[ -z "${clusterdeployment}" || -z "${hosted_zone_name}" ]]; then
-    echo "ERROR: Could not determine clusterdeployment namespace or baseDomain from ClusterClaim"
-    exit ${ERROR_CODE}
-  fi
-
-  # Add certificate
-  ./cluster-cert/apply-apps-cert.sh \
-    "${clusterdeployment}" \
-    "${hosted_zone_name}" \
-    "${LIFEGUARD_PATH}/clusterclaims/${CLUSTERCLAIM_NAME}/kubeconfig" \
-    "${CLUSTERPOOL_TARGET_NAMESPACE}" \
-    "${CLUSTERCLAIM_LIFETIME}"
+  # Add certificate, but ignore errors
+  /utils/apply-apps-cert.sh || true
 fi
 
 exit ${ERROR_CODE}
