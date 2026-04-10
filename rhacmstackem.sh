@@ -191,7 +191,7 @@ if [[ "${INSTALL_CERTIFICATE}" == "true" ]] && [[ -f "${CLUSTER_KUBECONFIG_FILE}
   unset KUBECONFIG
   echo "* Installing cluster certificate"
   # Add certificate, but ignore errors
-  /utils/apply-apps-cert.sh || true
+  /utils/apply-apps-cert.sh || echo "ERROR: Failed to install cluster certificate"
 fi
 
 exit ${ERROR_CODE}

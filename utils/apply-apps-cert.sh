@@ -8,7 +8,8 @@ set -euo pipefail
 : "${CLUSTER_KUBECONFIG_FILE?:CLUSTER_KUBECONFIG_FILE must be set}"
 
 # Fetch ClusterDeployment and Hosted Zone name from ClusterPool host
-oc project
+current_context="$(oc config current-context)"
+echo "* Current context: ${current_context}"
 
 clusterdeployment=$(oc get clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.namespace}')
 hosted_zone_name=$(oc get -n "${clusterdeployment}" clusterdeployments.hive.openshift.io "${clusterdeployment}" -o jsonpath='{.spec.baseDomain}')
@@ -70,7 +71,8 @@ cert_secret_yaml=$(oc get secret "${cert_secret_name}" -n "${CLUSTERPOOL_TARGET_
 # Switch to claimed cluster
 echo "* Switching to claimed cluster to apply certificate..."
 export KUBECONFIG="${CLUSTER_KUBECONFIG_FILE}"
-oc project
+current_context="$(oc config current-context)"
+echo "* Current context: ${current_context}"
 
 echo "* Copying certificate secret to openshift-ingress namespace on claimed cluster..."
 echo "${cert_secret_yaml}" | oc apply -n openshift-ingress -f -
