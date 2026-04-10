@@ -3,9 +3,5 @@ knowledge_base:
   linked_repositories:
     - repository: dhaiducek/startrhacm
       instructions: Wrapper script to provision an Openshift cluster and install Red Hat Advanced Cluster Management for Kubernetes (RHACM).
-    - repository: stolostron/deploy
-      instructions: Install script for Red Hat Advanced Cluster Management for Kubernetes (RHACM) located at start.sh.
-    - repository: stolostron/lifeguard
-      instructions: Scripts for managing ClusterPools and ClusterClaims to provision Openshift clusters.
     - repository: openshift/hive
       instructions: The controller and API for ClusterPools and ClusterClaims to provision Openshift clusters from cloud providers.
