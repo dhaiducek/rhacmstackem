@@ -8,13 +8,17 @@ set -euo pipefail
 : "${CLUSTER_KUBECONFIG_FILE?:CLUSTER_KUBECONFIG_FILE must be set}"
 
 # Fetch ClusterDeployment and Hosted Zone name from ClusterPool host
-current_context="$(oc config current-context)"
+current_context=$(
+  oc config current-context ||
+    oc config get-contexts -o name | head -n 1
+)
+current_context=${current_context:-"No context found"}
 echo "* Current context: ${current_context}"
 
 clusterdeployment=$(oc get clusterclaims.hive.openshift.io "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.namespace}')
 hosted_zone_name=$(oc get -n "${clusterdeployment}" clusterdeployments.hive.openshift.io "${clusterdeployment}" -o jsonpath='{.spec.baseDomain}')
 certificate_name="apps-domain-tls-cert-${clusterdeployment}"
-certificate_duration="${CLUSTERCLAIM_LIFETIME:-168h0m0s}" 
+certificate_duration="${CLUSTERCLAIM_LIFETIME:-168h0m0s}"
 
 echo "* ClusterDeployment name: ${clusterdeployment}"
 echo "* Hosted zone name: ${hosted_zone_name}"
@@ -65,13 +69,17 @@ cert_secret_name=$(oc get certificates.cert-manager.io "${certificate_name}" -n 
 
 # Extract the certificate secret from collective
 echo "* Extracting certificate secret from collective..."
-cert_secret_yaml=$(oc get secret "${cert_secret_name}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o yaml | 
+cert_secret_yaml=$(oc get secret "${cert_secret_name}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o yaml |
   yq '.metadata |= del(.creationTimestamp, .namespace, .ownerReferences, .resourceVersion, .uid)')
 
 # Switch to claimed cluster
 echo "* Switching to claimed cluster to apply certificate..."
 export KUBECONFIG="${CLUSTER_KUBECONFIG_FILE}"
-current_context="$(oc config current-context)"
+current_context=$(
+  oc config current-context ||
+    oc config get-contexts -o name | head -n 1
+)
+current_context=${current_context:-"No context found"}
 echo "* Current context: ${current_context}"
 
 echo "* Copying certificate secret to openshift-ingress namespace on claimed cluster..."
