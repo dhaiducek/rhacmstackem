@@ -137,13 +137,22 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     GREETING=":mostly_sunny: Good Morning! Here's your \`${CLUSTERCLAIM_NAME}\` cluster for $(date "+%A, %B %d, %Y")"
   fi
   if [[ -n "${KUBECONFIG}" ]]; then
-    if [[ -z "${ACM_CATALOG_TAG}" ]]; then
-      SNAPSHOT=$(oc get catalogsource acm-custom-registry -n openshift-marketplace -o jsonpath='{.spec.image}' | grep -o "[0-9]\+\..*SNAPSHOT.*$" || echo "(No snapshot found.)")
-    else
-      echo "${QUAY_TOKEN}" | base64 -d >authfile.json
-      skopeo inspect "docker://quay.io/acm-d/acm-dev-catalog:${ACM_CATALOG_TAG}" --no-tags --authfile=authfile.json >inspect.json
-      cat inspect.json
-      SNAPSHOT=$(jq -r '.Labels."konflux.additional-tags"' inspect.json)
+    image=$(
+      oc get catalogsource -n openshift-marketplace -o json |
+        jq -r '.items[] | select(.metadata.name | startswith("acm-")) | .spec.image // ""' |
+        head -n 1
+    )
+    SNAPSHOT="(No snapshot found.)"
+    if [[ -n "${image}" ]]; then
+      SNAPSHOT=${image##*:}
+      if [[ ${image%:*} == *"/acm-d/acm-dev-catalog" ]]; then
+        echo "${QUAY_TOKEN}" | base64 -d >authfile.json
+        skopeo inspect "docker://${image}" --no-tags --authfile=authfile.json >inspect.json
+        cat inspect.json
+        SNAPSHOT=$(jq -r '.Labels."konflux.additional-tags"' inspect.json)
+      fi
+    elif [[ -n "${ACM_CATALOG_TAG}" ]]; then
+      SNAPSHOT=${ACM_CATALOG_TAG}
     fi
 
     RHACM_URL=$(oc get routes console -n openshift-console -o jsonpath='{.status.ingress[0].host}' || echo "(No RHACM route found.)")
