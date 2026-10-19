@@ -146,7 +146,7 @@ if [[ -n "${SLACK_URL}" ]] || { [[ -n "${SLACK_TOKEN}" ]] && [[ -n "${SLACK_CHAN
     if [[ -n "${image}" ]]; then
       SNAPSHOT=${image##*:}
       if [[ ${image%:*} == *"/acm-d/acm-dev-catalog" ]]; then
-        echo "${QUAY_TOKEN}" | base64 -d >authfile.json
+        echo "${QUAY_TOKEN}" | base64 -d | sed "s/quay\.io/quay\.io:443/g" >authfile.json
         skopeo inspect "docker://${image}" --no-tags --authfile=authfile.json >inspect.json
         cat inspect.json
         SNAPSHOT=$(jq -r '.Labels."konflux.additional-tags"' inspect.json)
